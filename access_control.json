@@ -15,7 +15,7 @@
       },
       {
         "username": "user",
-        "password": "User123",
+        "password": "user123",
         "name": "User",
         "active": true,
         "lastLogin": null
@@ -39,6 +39,6 @@
     "session_expired": "Your session has expired. Please log in again."
   },
   "adminContacts": [
-    "admin@company.com"
+    "jt-bryce.lee@haesl.com"
   ]
 }
