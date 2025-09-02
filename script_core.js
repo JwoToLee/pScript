@@ -200,11 +200,15 @@
             return data;
         } catch (error) {
             console.error('Failed to fetch access control:', error);
-            // If we can't fetch access control, allow access (fail-open)
+            // If we can't fetch access control, deny access (fail-closed for security)
             return {
-                globalEnabled: true,
-                accessControl: { enabled: false },
-                features: { extraction: true, export: true, debug: true }
+                globalEnabled: false,
+                accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
+                features: { extraction: false, export: false, debug: false },
+                message: { 
+                    unauthorized: 'Cannot verify access permissions. Please check your connection and try again.',
+                    disabled: 'Access control service unavailable. Please try again later.'
+                }
             };
         }
     }
