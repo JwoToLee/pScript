@@ -1,339 +1,17 @@
 // ==UserScript==
 // @name         CAR Batch Extractor
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.4
 // @description  Loop through all CARs in the report listing and extract data to display in a left ribbon
 // @author       You
 // @match        https://haesl.gaelenlighten.com/Reporting/ReportingManagement*
 // @match        https://haesl.gaelenlighten.com/Reporting/Report/Index/*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
-// @grant        GM_getValue
-// @grant        GM_setValue
 // ==/UserScript==
 
 (function() {
     'use strict';
-
-    // Configuration
-    const ACCESS_CONTROL_URL = 'https://raw.githubusercontent.com/JwoToLee/pScript/main/access_control.json';
-    const CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
-    
-    // Global variables for access control
-    let accessControlData = null;
-    let userFingerprint = null;
-    let isAuthorized = false;
-    let lastAccessCheck = 0;
-
-    // Fingerprinting functions
-    function generateFingerprint() {
-        const components = [];
-        
-        try {
-            // Browser and system info
-            components.push(navigator.userAgent || '');
-            components.push(navigator.language || '');
-            components.push(navigator.platform || '');
-            components.push(navigator.cookieEnabled ? '1' : '0');
-            components.push(navigator.doNotTrack || '');
-            
-            // Screen info
-            components.push(screen.width + 'x' + screen.height);
-            components.push(screen.colorDepth || '');
-            components.push(screen.pixelDepth || '');
-            
-            // Timezone
-            components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
-            
-            // Hardware info
-            components.push(navigator.hardwareConcurrency || '');
-            components.push(navigator.deviceMemory || '');
-            
-            // WebGL fingerprint
-            const canvas = document.createElement('canvas');
-            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-            if (gl) {
-                const renderer = gl.getParameter(gl.RENDERER) || '';
-                const vendor = gl.getParameter(gl.VENDOR) || '';
-                components.push(renderer + vendor);
-            }
-            
-            // Canvas fingerprint
-            const ctx = canvas.getContext('2d');
-            ctx.textBaseline = 'top';
-            ctx.font = '14px Arial';
-            ctx.fillText('CAR Extractor Fingerprint', 2, 2);
-            components.push(canvas.toDataURL());
-            
-            // Audio context fingerprint
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const analyser = audioCtx.createAnalyser();
-                const gainNode = audioCtx.createGain();
-                
-                oscillator.connect(analyser);
-                analyser.connect(gainNode);
-                
-                components.push(audioCtx.sampleRate.toString());
-                components.push(analyser.frequencyBinCount.toString());
-                
-                audioCtx.close();
-            } catch (e) {
-                components.push('audio_unavailable');
-            }
-            
-        } catch (error) {
-            console.warn('Error generating fingerprint component:', error);
-        }
-        
-        // Create hash of all components
-        const fingerprint = btoa(components.join('|')).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
-        const fullFingerprint = 'fp_' + fingerprint;
-        
-        // Log detailed fingerprint information to console for admin purposes
-        console.group('🔍 CAR Extractor - User Fingerprint Details');
-        console.log('📋 USER FINGERPRINT:', fullFingerprint);
-        console.log('');
-        console.log('🔧 For Admin: Copy this fingerprint to add to access control:');
-        console.log(`"${fullFingerprint}"`);
-        console.log('');
-        console.log('🔍 Fingerprint Components:');
-        console.log('User Agent:', navigator.userAgent);
-        console.log('Language:', navigator.language);
-        console.log('Platform:', navigator.platform);
-        console.log('Screen:', screen.width + 'x' + screen.height);
-        console.log('Timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
-        console.log('Hardware Concurrency:', navigator.hardwareConcurrency);
-        console.log('');
-        console.log('🔢 Raw Components Array:');
-        console.log(components);
-        console.groupEnd();
-        
-        // Also show a temporary notification on screen
-        showFingerprintNotification(fullFingerprint);
-        
-        return fullFingerprint;
-    }
-
-    function showFingerprintNotification(fingerprint) {
-        const notification = document.createElement('div');
-        notification.id = 'fingerprint-notification';
-        notification.innerHTML = `
-            <div style="position: fixed; top: 20px; right: 20px; 
-                        background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); 
-                        color: white; padding: 15px 20px; border-radius: 8px; 
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 10004; 
-                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                        max-width: 350px; font-size: 12px; line-height: 1.4;">
-                <div style="font-weight: bold; margin-bottom: 8px; display: flex; align-items: center;">
-                    🔍 User Fingerprint Generated
-                    <button onclick="navigator.clipboard.writeText('${fingerprint}').then(() => {
-                        this.textContent = '✓ Copied!';
-                        setTimeout(() => this.textContent = '📋', 2000);
-                    })" 
-                            style="margin-left: auto; background: rgba(255,255,255,0.2); border: none; 
-                                   color: white; font-size: 12px; cursor: pointer; padding: 2px 6px; 
-                                   border-radius: 3px;">📋</button>
-                </div>
-                <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; 
-                           font-family: monospace; word-break: break-all; margin-bottom: 8px;">
-                    ${fingerprint}
-                </div>
-                <div style="font-size: 10px; opacity: 0.9;">
-                    Check console (F12) for detailed information
-                </div>
-                <button onclick="this.parentElement.parentElement.remove()" 
-                        style="position: absolute; top: 5px; right: 5px; 
-                               background: none; border: none; color: white; 
-                               font-size: 16px; cursor: pointer; padding: 0; width: 20px; height: 20px;">
-                    ×
-                </button>
-            </div>
-        `;
-        document.body.appendChild(notification);
-        
-        // Auto-remove after 30 seconds
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, 30000);
-    }
-
-    function getUserFingerprint() {
-        // Try to get stored fingerprint first
-        let fingerprint = GM_getValue('userFingerprint', null);
-        
-        if (!fingerprint) {
-            // Generate new fingerprint
-            fingerprint = generateFingerprint();
-            GM_setValue('userFingerprint', fingerprint);
-            console.log('Generated new user fingerprint:', fingerprint);
-        } else {
-            console.log('Retrieved stored fingerprint:', fingerprint);
-        }
-        
-        return fingerprint;
-    }
-
-    // Access control functions
-    async function fetchAccessControl() {
-        try {
-            console.log('Fetching access control configuration...');
-            const response = await fetch(ACCESS_CONTROL_URL + '?t=' + Date.now(), {
-                method: 'GET',
-                cache: 'no-cache',
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log('Access control data loaded:', data);
-            return data;
-        } catch (error) {
-            console.error('Failed to fetch access control:', error);
-            // If we can't fetch access control, allow access (fail-open)
-            return {
-                globalEnabled: true,
-                accessControl: { enabled: false },
-                features: { extraction: true, export: true, debug: true }
-            };
-        }
-    }
-
-    function checkUserAccess(accessData, userFingerprint) {
-        if (!accessData) return false;
-        
-        // Check if globally disabled
-        if (!accessData.globalEnabled) {
-            return { authorized: false, reason: 'disabled', message: accessData.message?.disabled };
-        }
-        
-        // Check if access control is disabled (allow all)
-        if (!accessData.accessControl?.enabled) {
-            return { authorized: true };
-        }
-        
-        if (!userFingerprint) {
-            return { authorized: false, reason: 'no_fingerprint', message: 'Device fingerprint required' };
-        }
-        
-        const { mode, allowedFingerprints, blockedFingerprints } = accessData.accessControl;
-        
-        // Check blocked fingerprints first
-        if (blockedFingerprints && blockedFingerprints.includes(userFingerprint)) {
-            return { authorized: false, reason: 'blocked', message: accessData.message?.unauthorized };
-        }
-        
-        if (mode === 'whitelist') {
-            // Check fingerprint match
-            if (allowedFingerprints && allowedFingerprints.includes(userFingerprint)) {
-                return { authorized: true };
-            }
-            
-            return { authorized: false, reason: 'not_whitelisted', message: accessData.message?.unauthorized };
-        } else if (mode === 'blacklist') {
-            // In blacklist mode, allow everyone except blocked fingerprints
-            return { authorized: true };
-        }
-        
-        return { authorized: false, reason: 'unknown', message: accessData.message?.unauthorized };
-    }
-
-    async function verifyAccess() {
-        const now = Date.now();
-        
-        // Only check if it's been more than CHECK_INTERVAL since last check
-        if (accessControlData && (now - lastAccessCheck) < CHECK_INTERVAL) {
-            return { authorized: isAuthorized, data: accessControlData };
-        }
-        
-        console.log('Verifying user access...');
-        lastAccessCheck = now;
-        
-        // Fetch current access control data
-        accessControlData = await fetchAccessControl();
-        
-        // Get user fingerprint
-        userFingerprint = getUserFingerprint();
-        
-        // Check access
-        const accessResult = checkUserAccess(accessControlData, userFingerprint);
-        isAuthorized = accessResult.authorized;
-        
-        console.log('Access verification result:', accessResult);
-        console.log('User fingerprint:', userFingerprint);
-        
-        return { 
-            authorized: accessResult.authorized, 
-            reason: accessResult.reason,
-            message: accessResult.message,
-            data: accessControlData 
-        };
-    }
-
-    function showAccessDeniedMessage(reason, message) {
-        const deniedDiv = document.createElement('div');
-        deniedDiv.id = 'car-extractor-access-denied';
-        deniedDiv.innerHTML = `
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                        background: linear-gradient(180deg, #dc3545 0%, #c82333 100%); 
-                        color: white; padding: 20px; border-radius: 8px; 
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 10003; 
-                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                        max-width: 400px; text-align: center;">
-                <h3 style="margin: 0 0 15px 0;">🚫 Access Denied</h3>
-                <p style="margin: 0 0 15px 0;">${message || 'You are not authorized to use this tool.'}</p>
-                <p style="margin: 0 0 15px 0; font-size: 12px; opacity: 0.8;">
-                    Device: ${userFingerprint || 'Unknown'}<br>
-                    Reason: ${reason || 'Unknown'}
-                </p>
-                <button onclick="this.parentElement.parentElement.remove()" 
-                        style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); 
-                               color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                    Close
-                </button>
-            </div>
-        `;
-        document.body.appendChild(deniedDiv);
-        
-        // Auto-remove after 10 seconds
-        setTimeout(() => {
-            if (deniedDiv.parentElement) {
-                deniedDiv.remove();
-            }
-        }, 10000);
-    }
-
-    function showAccessStatus() {
-        const statusDiv = document.createElement('div');
-        statusDiv.id = 'car-extractor-access-status';
-        statusDiv.innerHTML = `
-            <div style="position: fixed; bottom: 10px; right: 10px; 
-                        background: rgba(40, 167, 69, 0.9); color: white; 
-                        padding: 8px 12px; border-radius: 4px; 
-                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                        font-size: 11px; z-index: 10002;">
-                ✅ Authorized Device: ${userFingerprint ? userFingerprint.substring(0, 12) + '...' : 'Unknown'}
-            </div>
-        `;
-        document.body.appendChild(statusDiv);
-        
-        // Auto-remove after 3 seconds
-        setTimeout(() => {
-            if (statusDiv.parentElement) {
-                statusDiv.remove();
-            }
-        }, 3000);
-    }
 
         // Create left ribbon UI
     function createUI() {
@@ -341,7 +19,7 @@
         ribbon.id = 'car-extractor-ribbon';
         ribbon.innerHTML = `
             <div class="ribbon-header">
-                <span>CAR BATCH EXTRACTOR v3.1</span>
+                <span>CAR BATCH EXTRACTOR v1.0</span>
                 <button id="minimize-ribbon-btn" title="Minimize">-</button>
             </div>
             <div id="ribbon-content">
@@ -1643,21 +1321,9 @@
     }
 
     // Initialize the UI when the page loads
-    async function init() {
+    function init() {
         console.log('Initializing CAR Batch Extractor...');
         console.log('Current URL:', window.location.href);
-        
-        // First, verify access before doing anything else
-        const accessResult = await verifyAccess();
-        
-        if (!accessResult.authorized) {
-            console.log('Access denied:', accessResult.reason);
-            showAccessDeniedMessage(accessResult.reason, accessResult.message);
-            return; // Stop initialization
-        }
-        
-        console.log('Access granted for device fingerprint:', userFingerprint);
-        showAccessStatus();
         
         // Check if we're on a CAR details page (has #!/details)
         if (window.location.href.includes('#!/details')) {
@@ -1684,46 +1350,12 @@
                     setTimeout(() => {
                         createUI();
                         updateButtonStates('idle'); // Initialize button states
-                        
-                        // Set up periodic access checks
-                        setInterval(async () => {
-                            const recheckResult = await verifyAccess();
-                            if (!recheckResult.authorized && isAuthorized) {
-                                // Access was revoked
-                                console.log('Access revoked during session');
-                                showAccessDeniedMessage(recheckResult.reason, recheckResult.message);
-                                
-                                // Hide the UI
-                                const ribbon = document.getElementById('car-extractor-ribbon');
-                                if (ribbon) ribbon.style.display = 'none';
-                                
-                                // Stop any ongoing extraction
-                                stopExtraction();
-                            }
-                        }, CHECK_INTERVAL);
                     }, 1000);
                 });
             } else {
                 setTimeout(() => {
                     createUI();
                     updateButtonStates('idle'); // Initialize button states
-                    
-                    // Set up periodic access checks
-                    setInterval(async () => {
-                        const recheckResult = await verifyAccess();
-                        if (!recheckResult.authorized && isAuthorized) {
-                            // Access was revoked
-                            console.log('Access revoked during session');
-                            showAccessDeniedMessage(recheckResult.reason, recheckResult.message);
-                            
-                            // Hide the UI
-                            const ribbon = document.getElementById('car-extractor-ribbon');
-                            if (ribbon) ribbon.style.display = 'none';
-                            
-                            // Stop any ongoing extraction
-                            stopExtraction();
-                        }
-                    }, CHECK_INTERVAL);
                 }, 1000);
             }
         }

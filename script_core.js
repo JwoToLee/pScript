@@ -513,7 +513,11 @@
         ribbon.innerHTML = `
             <div class="ribbon-header">
                 <span>CAR BATCH EXTRACTOR v3.1</span>
-                <button id="minimize-ribbon-btn" title="Minimize">-</button>
+                <div class="header-buttons">
+                    <button id="debug-page-btn" title="Debug">debug</button>
+                    <button id="logout-btn" title="Logout">logout</button>
+                    <button id="minimize-ribbon-btn" title="Minimize">-</button>
+                </div>
             </div>
             <div class="ribbon-navigation">
                 <div class="nav-tab active" id="extractor-tab" data-tab="extractor">
@@ -531,10 +535,6 @@
             </div>
             <div id="ribbon-content">
                 <div class="tab-content active" id="extractor-content">
-                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                        <button id="debug-page-btn">debug</button>
-                        <button id="logout-btn">logout</button>
-                    </div>
                     <div style="display: flex; gap: 5px; margin-bottom: 10px;">
                         <button id="start-extraction-btn">start</button>
                         <button id="pause-extraction-btn" disabled>pause</button>
@@ -575,8 +575,12 @@
         minimizedBtn.id = 'ribbon-minimized-btn';
         minimizedBtn.innerHTML = '>';
         minimizedBtn.title = 'Show CAR Extractor';
-        minimizedBtn.style.display = 'none';
+        minimizedBtn.style.display = 'flex'; // Show minimized button by default
         document.body.appendChild(minimizedBtn);
+        
+        // Start with ribbon minimized
+        ribbon.style.display = 'none';
+        document.body.classList.add('ribbon-minimized');
         
         // Add event listeners
         document.getElementById('debug-page-btn').addEventListener('click', debugPage);
@@ -625,88 +629,42 @@
         #car-extractor-ribbon button {
             font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
             font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
-            border-radius: 8px;
-            padding: 10px 16px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 8px 14px;
             cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
         }
         
         #car-extractor-ribbon button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #ffffff;
         }
         
         #car-extractor-ribbon button:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.08);
         }
         
-        #debug-page-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            color: white !important;
+        #debug-page-btn, #logout-btn, #start-extraction-btn, 
+        #pause-extraction-btn, #stop-extraction-btn, 
+        #export-results-btn, #clear-results-btn {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: rgba(255, 255, 255, 0.9) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
         }
         
-        #debug-page-btn:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
-        }
-        
-        #logout-btn {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%) !important;
-            color: white !important;
-        }
-        
-        #logout-btn:hover {
-            background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%) !important;
-        }
-        
-        #start-extraction-btn {
-            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%) !important;
-            color: white !important;
-        }
-        
-        #start-extraction-btn:hover {
-            background: linear-gradient(135deg, #44a08d 0%, #4ecdc4 100%) !important;
-        }
-        
-        #pause-extraction-btn {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
-            color: white !important;
-        }
-        
-        #pause-extraction-btn:hover {
-            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%) !important;
-        }
-        
-        #stop-extraction-btn {
-            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%) !important;
-            color: #333 !important;
-        }
-        
-        #stop-extraction-btn:hover {
-            background: linear-gradient(135deg, #fecfef 0%, #ff9a9e 100%) !important;
-        }
-        
-        #export-results-btn {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%) !important;
-            color: #333 !important;
-        }
-        
-        #export-results-btn:hover {
-            background: linear-gradient(135deg, #fed6e3 0%, #a8edea 100%) !important;
-        }
-        
-        #clear-results-btn {
-            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%) !important;
-            color: #333 !important;
-        }
-        
-        #clear-results-btn:hover {
-            background: linear-gradient(135deg, #fcb69f 0%, #ffecd2 100%) !important;
+        #debug-page-btn:hover, #logout-btn:hover, #start-extraction-btn:hover,
+        #pause-extraction-btn:hover, #stop-extraction-btn:hover,
+        #export-results-btn:hover, #clear-results-btn:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border-color: rgba(255, 255, 255, 0.3) !important;
+            color: #ffffff !important;
         }
         
         .car-entry {
@@ -841,23 +799,50 @@
             backdrop-filter: blur(5px);
         }
         
+        .header-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .header-buttons button {
+            font-size: 10px !important;
+            padding: 4px 8px !important;
+            min-width: auto !important;
+            height: auto !important;
+            font-weight: 500 !important;
+        }
+        
+        #debug-page-btn, #logout-btn {
+            background: rgba(255, 255, 255, 0.08) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        }
+        
+        #debug-page-btn:hover, #logout-btn:hover {
+            background: rgba(255, 255, 255, 0.12) !important;
+            border-color: rgba(255, 255, 255, 0.25) !important;
+        }
+        
         #minimize-ribbon-btn {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%) !important;
-            color: white !important;
+            background: transparent !important;
+            color: rgba(255, 255, 255, 0.8) !important;
             border: none !important;
-            border-radius: 50% !important;
-            padding: 8px 10px !important;
-            font-size: 14px !important;
+            border-radius: 4px !important;
+            padding: 6px 8px !important;
+            font-size: 16px !important;
             cursor: pointer !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3) !important;
-            font-weight: bold !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            font-weight: normal !important;
+            line-height: 1 !important;
+            width: auto !important;
+            height: auto !important;
         }
         
         #minimize-ribbon-btn:hover {
-            background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%) !important;
-            transform: scale(1.1) !important;
-            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5) !important;
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: #ffffff !important;
+            transform: none !important;
+            box-shadow: none !important;
         }
         
         #ribbon-minimized-btn {
