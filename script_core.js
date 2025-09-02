@@ -179,38 +179,80 @@
 
     // Access control functions
     async function fetchAccessControl() {
-        try {
-            console.log('Fetching access control configuration...');
-            const response = await fetch(ACCESS_CONTROL_URL + '?t=' + Date.now(), {
-                method: 'GET',
-                cache: 'no-cache',
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        return new Promise((resolve) => {
+            try {
+                console.log('Fetching access control configuration...');
+                
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: ACCESS_CONTROL_URL + '?t=' + Date.now(),
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    },
+                    onload: function(response) {
+                        try {
+                            if (response.status === 200) {
+                                const data = JSON.parse(response.responseText);
+                                console.log('Access control data loaded:', data);
+                                resolve(data);
+                            } else {
+                                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                            }
+                        } catch (parseError) {
+                            console.error('Failed to parse access control JSON:', parseError);
+                            resolve({
+                                globalEnabled: false,
+                                accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
+                                features: { extraction: false, export: false, debug: false },
+                                message: { 
+                                    unauthorized: 'Access control configuration error. Please contact admin.',
+                                    disabled: 'Access control service error.'
+                                }
+                            });
+                        }
+                    },
+                    onerror: function(error) {
+                        console.error('Failed to fetch access control:', error);
+                        resolve({
+                            globalEnabled: false,
+                            accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
+                            features: { extraction: false, export: false, debug: false },
+                            message: { 
+                                unauthorized: 'Cannot verify access permissions. Please check your connection and try again.',
+                                disabled: 'Access control service unavailable. Please try again later.'
+                            }
+                        });
+                    },
+                    ontimeout: function() {
+                        console.error('Access control fetch timeout');
+                        resolve({
+                            globalEnabled: false,
+                            accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
+                            features: { extraction: false, export: false, debug: false },
+                            message: { 
+                                unauthorized: 'Access verification timeout. Please try again.',
+                                disabled: 'Access control service timeout.'
+                            }
+                        });
+                    },
+                    timeout: 10000
+                });
+                
+            } catch (error) {
+                console.error('Failed to initiate access control fetch:', error);
+                resolve({
+                    globalEnabled: false,
+                    accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
+                    features: { extraction: false, export: false, debug: false },
+                    message: { 
+                        unauthorized: 'Access control initialization error. Please contact admin.',
+                        disabled: 'Access control service error.'
+                    }
+                });
             }
-            
-            const data = await response.json();
-            console.log('Access control data loaded:', data);
-            return data;
-        } catch (error) {
-            console.error('Failed to fetch access control:', error);
-            // If we can't fetch access control, deny access (fail-closed for security)
-            return {
-                globalEnabled: false,
-                accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
-                features: { extraction: false, export: false, debug: false },
-                message: { 
-                    unauthorized: 'Cannot verify access permissions. Please check your connection and try again.',
-                    disabled: 'Access control service unavailable. Please try again later.'
-                }
-            };
-        }
+        });
     }
 
     function checkUserAccess(accessData, userFingerprint) {
