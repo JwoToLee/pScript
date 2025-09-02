@@ -521,16 +521,16 @@
             </div>
             <div class="ribbon-navigation">
                 <div class="nav-tab active" id="extractor-tab" data-tab="extractor">
-                    <span>🔧</span>
+                    <span>Extract</span>
                 </div>
                 <div class="nav-tab" id="console-tab" data-tab="console">
-                    <span>📊</span>
+                    <span>Console</span>
                 </div>
                 <div class="nav-tab" id="settings-tab" data-tab="settings">
-                    <span>⚙️</span>
+                    <span>Settings</span>
                 </div>
                 <div class="nav-tab" id="help-tab" data-tab="help">
-                    <span>❓</span>
+                    <span>Help</span>
                 </div>
             </div>
             <div id="ribbon-content">
@@ -574,10 +574,10 @@
                         
                         <div class="help-section">
                             <h4>⚙️ Tab Navigation</h4>
-                            <p><strong>⚙️ Extractor:</strong> Main extraction controls</p>
-                            <p><strong>📊 Console:</strong> Logs and debugging info</p>
-                            <p><strong>⚙️ Settings:</strong> Configuration options</p>
-                            <p><strong>❓ Help:</strong> This help guide</p>
+                            <p><strong>Extract:</strong> Main extraction controls</p>
+                            <p><strong>Console:</strong> Logs and debugging info</p>
+                            <p><strong>Settings:</strong> Configuration options</p>
+                            <p><strong>Help:</strong> This help guide</p>
                         </div>
                         
                         <div class="help-section">
@@ -964,7 +964,8 @@
             color: rgba(255, 255, 255, 0.7);
             cursor: pointer;
             font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-            font-size: 16px;
+            font-size: 11px;
+            font-weight: 500;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             border-bottom: 2px solid transparent;
             position: relative;
@@ -973,6 +974,8 @@
             align-items: center;
             justify-content: center;
             min-height: 36px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .nav-tab:hover {
