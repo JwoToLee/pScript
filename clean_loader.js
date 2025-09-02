@@ -39,9 +39,22 @@
     
     function executeScript(scriptContent) {
         try {
-            // Use Function constructor instead of eval - safer and ESLint-friendly
-            const scriptFunction = new Function(scriptContent);
-            scriptFunction.call(window);
+            // Create a script element and inject it into the page
+            // This preserves the Tampermonkey context and grants
+            const scriptElement = document.createElement('script');
+            scriptElement.textContent = scriptContent;
+            scriptElement.setAttribute('type', 'text/javascript');
+            
+            // Inject into the document head
+            (document.head || document.documentElement).appendChild(scriptElement);
+            
+            // Clean up the script element after a brief delay
+            setTimeout(() => {
+                if (scriptElement.parentNode) {
+                    scriptElement.parentNode.removeChild(scriptElement);
+                }
+            }, 1000);
+            
             return true;
         } catch (error) {
             console.error('Script execution error:', error.message);

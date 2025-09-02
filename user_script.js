@@ -34,22 +34,28 @@
     
     function executeScript(scriptContent) {
         try {
-            // Create a new script element and inject it
+            // Create a script element and inject it
             const scriptElement = document.createElement('script');
             scriptElement.textContent = scriptContent;
             scriptElement.setAttribute('type', 'text/javascript');
             
-            // Add to head temporarily
-            document.head.appendChild(scriptElement);
-            
-            // Remove the script element after execution
-            setTimeout(() => {
-                if (scriptElement.parentNode) {
-                    scriptElement.parentNode.removeChild(scriptElement);
-                }
-            }, 100);
-            
-            return true;
+            // Ensure we have a valid insertion point
+            const insertionPoint = document.head || document.documentElement || document.body;
+            if (insertionPoint) {
+                insertionPoint.appendChild(scriptElement);
+                
+                // Remove the script element after execution
+                setTimeout(() => {
+                    if (scriptElement.parentNode) {
+                        scriptElement.parentNode.removeChild(scriptElement);
+                    }
+                }, 500);
+                
+                return true;
+            } else {
+                console.error('No valid insertion point found');
+                return false;
+            }
         } catch (error) {
             console.error('Script execution failed:', error.message);
             return false;
