@@ -98,7 +98,7 @@
                 console.log(`🔄 Retrying... (${attempt + 1}/${config.retries})`);
                 setTimeout(() => loadMainScript(attempt + 1), 2000);
             } else {
-                showSecurityAlert('Failed to load enterprise tool. Please contact support.');
+                showSecurityAlert('Failed to load tool. Please contact support.');
             }
             
             return false;

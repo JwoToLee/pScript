@@ -512,26 +512,60 @@
         ribbon.id = 'car-extractor-ribbon';
         ribbon.innerHTML = `
             <div class="ribbon-header">
-                <span>CAR BATCH EXTRACTOR v1.0</span>
+                <span>CAR BATCH EXTRACTOR v3.1</span>
                 <button id="minimize-ribbon-btn" title="Minimize">-</button>
             </div>
+            <div class="ribbon-navigation">
+                <div class="nav-tab active" id="extractor-tab" data-tab="extractor">
+                    <span>Extractor</span>
+                </div>
+                <div class="nav-tab" id="console-tab" data-tab="console">
+                    <span>Console</span>
+                </div>
+                <div class="nav-tab" id="settings-tab" data-tab="settings">
+                    <span>Settings</span>
+                </div>
+                <div class="nav-tab" id="help-tab" data-tab="help">
+                    <span>Help</span>
+                </div>
+            </div>
             <div id="ribbon-content">
-                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                    <button id="debug-page-btn">debug</button>
-                    <button id="logout-btn">logout</button>
+                <div class="tab-content active" id="extractor-content">
+                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                        <button id="debug-page-btn">debug</button>
+                        <button id="logout-btn">logout</button>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                        <button id="start-extraction-btn">start</button>
+                        <button id="pause-extraction-btn" disabled>pause</button>
+                        <button id="stop-extraction-btn" disabled>stop</button>
+                    </div>
+                    <div id="progress-info">Ready to extract CAR data</div>
+                    <div id="status-info">Waiting for input...</div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                        <button id="export-results-btn" disabled>export</button>
+                        <button id="clear-results-btn">clear</button>
+                    </div>
+                    <div id="car-results"></div>
                 </div>
-                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                    <button id="start-extraction-btn">start</button>
-                    <button id="pause-extraction-btn" disabled>pause</button>
-                    <button id="stop-extraction-btn" disabled>stop</button>
+                <div class="tab-content" id="console-content">
+                    <div class="tbd-content">
+                        <h3>Console</h3>
+                        <p>TBD - Console logs and debugging information will be displayed here.</p>
+                    </div>
                 </div>
-                <div id="progress-info">Ready to extract CAR data</div>
-                <div id="status-info">Waiting for input...</div>
-                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                    <button id="export-results-btn" disabled>export</button>
-                    <button id="clear-results-btn">clear</button>
+                <div class="tab-content" id="settings-content">
+                    <div class="tbd-content">
+                        <h3>Settings</h3>
+                        <p>TBD - Configuration options and preferences will be available here.</p>
+                    </div>
                 </div>
-                <div id="car-results"></div>
+                <div class="tab-content" id="help-content">
+                    <div class="tbd-content">
+                        <h3>Help</h3>
+                        <p>TBD - Documentation and user guide will be provided here.</p>
+                    </div>
+                </div>
             </div>
         `;
         document.body.appendChild(ribbon);
@@ -555,6 +589,15 @@
         document.getElementById('minimize-ribbon-btn').addEventListener('click', minimizeRibbon);
         document.getElementById('ribbon-minimized-btn').addEventListener('click', maximizeRibbon);
         
+        // Add tab navigation event listeners
+        document.getElementById('extractor-tab').addEventListener('click', () => switchTab('extractor'));
+        document.getElementById('console-tab').addEventListener('click', () => switchTab('console'));
+        document.getElementById('settings-tab').addEventListener('click', () => switchTab('settings'));
+        document.getElementById('help-tab').addEventListener('click', () => switchTab('help'));
+        
+        // Initialize the first tab as active
+        switchTab('extractor');
+        
         // Create context menu for individual CAR refresh
         createContextMenu();
     }
@@ -576,6 +619,7 @@
             padding: 20px;
             border-right: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
+            border-radius: 0 15px 15px 0;
         }
         
         #car-extractor-ribbon button {
@@ -873,6 +917,85 @@
         .car-context-menu-item:active {
             background: rgba(88, 166, 255, 0.25);
         }
+        
+        /* Navigation Tabs Styles */
+        .navigation-container {
+            margin: -20px -20px 0 -20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-tabs {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .nav-tab {
+            flex: 1;
+            padding: 12px 15px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-bottom: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-tab:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .nav-tab.active {
+            background: rgba(88, 166, 255, 0.15);
+            color: #58a6ff;
+            border-bottom-color: #58a6ff;
+        }
+        
+        .nav-tab.active::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #58a6ff 0%, #79c0ff 100%);
+        }
+        
+        .tab-content {
+            padding: 20px;
+            display: none;
+        }
+        
+        .tab-content.active,
+        #extractor-content {
+            display: block;
+        }
+        
+        .tab-content h3 {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .tab-content p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
     `);
 
     let extractionInProgress = false;
@@ -907,6 +1030,23 @@
             minimizedBtn.style.display = 'none';
             body.classList.remove('ribbon-minimized');
         }
+    }
+
+    // Function to switch between tabs
+    function switchTab(tabName) {
+        // Remove active class from all tabs
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // Hide all content sections
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        
+        // Activate selected tab
+        document.getElementById(tabName + '-tab').classList.add('active');
+        document.getElementById(tabName + '-content').style.display = 'block';
     }
 
     // Function to create context menu for individual CAR refresh
