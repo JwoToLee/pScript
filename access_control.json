@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2025-09-02T00:00:00Z",
+  "globalEnabled": true,
+  "accessControl": {
+    "enabled": true,
+    "mode": "whitelist",
+    "allowedFingerprints": [
+      "fp_admin_12345",
+      "fp_user1_67890",
+      "fp_user2_abcde"
+    ],
+    "blockedFingerprints": []
+  },
+  "features": {
+    "extraction": true,
+    "export": true,
+    "debug": true
+  },
+  "message": {
+    "unauthorized": "Access denied. Please contact your administrator to request access to this tool. Your fingerprint will be shown in the console (F12) - copy it and send it to the admin.",
+    "disabled": "This tool is currently disabled for maintenance. Please try again later.",
+    "fingerprint_info": "Your device fingerprint will be used to verify access. Check the console (F12) to see your fingerprint."
+  },
+  "adminContacts": [
+    "admin@company.com"
+  ]
+}

@@ -1,0 +1,1735 @@
+// ==UserScript==
+// @name         CAR Batch Extractor
+// @namespace    http://tampermonkey.net/
+// @version      1.5
+// @description  Loop through all CARs in the report listing and extract data to display in a left ribbon
+// @author       You
+// @match        https://haesl.gaelenlighten.com/Reporting/ReportingManagement*
+// @match        https://haesl.gaelenlighten.com/Reporting/Report/Index/*
+// @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Configuration
+    const ACCESS_CONTROL_URL = 'https://raw.githubusercontent.com/JwoToLee/pScript/main/access_control.json';
+    const CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
+    
+    // Global variables for access control
+    let accessControlData = null;
+    let userFingerprint = null;
+    let isAuthorized = false;
+    let lastAccessCheck = 0;
+
+    // Fingerprinting functions
+    function generateFingerprint() {
+        const components = [];
+        
+        try {
+            // Browser and system info
+            components.push(navigator.userAgent || '');
+            components.push(navigator.language || '');
+            components.push(navigator.platform || '');
+            components.push(navigator.cookieEnabled ? '1' : '0');
+            components.push(navigator.doNotTrack || '');
+            
+            // Screen info
+            components.push(screen.width + 'x' + screen.height);
+            components.push(screen.colorDepth || '');
+            components.push(screen.pixelDepth || '');
+            
+            // Timezone
+            components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+            
+            // Hardware info
+            components.push(navigator.hardwareConcurrency || '');
+            components.push(navigator.deviceMemory || '');
+            
+            // WebGL fingerprint
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (gl) {
+                const renderer = gl.getParameter(gl.RENDERER) || '';
+                const vendor = gl.getParameter(gl.VENDOR) || '';
+                components.push(renderer + vendor);
+            }
+            
+            // Canvas fingerprint
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('CAR Extractor Fingerprint', 2, 2);
+            components.push(canvas.toDataURL());
+            
+            // Audio context fingerprint
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const analyser = audioCtx.createAnalyser();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(analyser);
+                analyser.connect(gainNode);
+                
+                components.push(audioCtx.sampleRate.toString());
+                components.push(analyser.frequencyBinCount.toString());
+                
+                audioCtx.close();
+            } catch (e) {
+                components.push('audio_unavailable');
+            }
+            
+        } catch (error) {
+            console.warn('Error generating fingerprint component:', error);
+        }
+        
+        // Create hash of all components
+        const fingerprint = btoa(components.join('|')).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+        const fullFingerprint = 'fp_' + fingerprint;
+        
+        // Log detailed fingerprint information to console for admin purposes
+        console.group('🔍 CAR Extractor - User Fingerprint Details');
+        console.log('📋 USER FINGERPRINT:', fullFingerprint);
+        console.log('');
+        console.log('🔧 For Admin: Copy this fingerprint to add to access control:');
+        console.log(`"${fullFingerprint}"`);
+        console.log('');
+        console.log('🔍 Fingerprint Components:');
+        console.log('User Agent:', navigator.userAgent);
+        console.log('Language:', navigator.language);
+        console.log('Platform:', navigator.platform);
+        console.log('Screen:', screen.width + 'x' + screen.height);
+        console.log('Timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+        console.log('Hardware Concurrency:', navigator.hardwareConcurrency);
+        console.log('');
+        console.log('🔢 Raw Components Array:');
+        console.log(components);
+        console.groupEnd();
+        
+        // Also show a temporary notification on screen
+        showFingerprintNotification(fullFingerprint);
+        
+        return fullFingerprint;
+    }
+
+    function showFingerprintNotification(fingerprint) {
+        const notification = document.createElement('div');
+        notification.id = 'fingerprint-notification';
+        notification.innerHTML = `
+            <div style="position: fixed; top: 20px; right: 20px; 
+                        background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); 
+                        color: white; padding: 15px 20px; border-radius: 8px; 
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 10004; 
+                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                        max-width: 350px; font-size: 12px; line-height: 1.4;">
+                <div style="font-weight: bold; margin-bottom: 8px; display: flex; align-items: center;">
+                    🔍 User Fingerprint Generated
+                    <button onclick="navigator.clipboard.writeText('${fingerprint}').then(() => {
+                        this.textContent = '✓ Copied!';
+                        setTimeout(() => this.textContent = '📋', 2000);
+                    })" 
+                            style="margin-left: auto; background: rgba(255,255,255,0.2); border: none; 
+                                   color: white; font-size: 12px; cursor: pointer; padding: 2px 6px; 
+                                   border-radius: 3px;">📋</button>
+                </div>
+                <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; 
+                           font-family: monospace; word-break: break-all; margin-bottom: 8px;">
+                    ${fingerprint}
+                </div>
+                <div style="font-size: 10px; opacity: 0.9;">
+                    Check console (F12) for detailed information
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="position: absolute; top: 5px; right: 5px; 
+                               background: none; border: none; color: white; 
+                               font-size: 16px; cursor: pointer; padding: 0; width: 20px; height: 20px;">
+                    ×
+                </button>
+            </div>
+        `;
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 30 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 30000);
+    }
+
+    function getUserFingerprint() {
+        // Try to get stored fingerprint first
+        let fingerprint = GM_getValue('userFingerprint', null);
+        
+        if (!fingerprint) {
+            // Generate new fingerprint
+            fingerprint = generateFingerprint();
+            GM_setValue('userFingerprint', fingerprint);
+            console.log('Generated new user fingerprint:', fingerprint);
+        } else {
+            console.log('Retrieved stored fingerprint:', fingerprint);
+        }
+        
+        return fingerprint;
+    }
+
+    // Access control functions
+    async function fetchAccessControl() {
+        try {
+            console.log('Fetching access control configuration...');
+            const response = await fetch(ACCESS_CONTROL_URL + '?t=' + Date.now(), {
+                method: 'GET',
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Access control data loaded:', data);
+            return data;
+        } catch (error) {
+            console.error('Failed to fetch access control:', error);
+            // If we can't fetch access control, allow access (fail-open)
+            return {
+                globalEnabled: true,
+                accessControl: { enabled: false },
+                features: { extraction: true, export: true, debug: true }
+            };
+        }
+    }
+
+    function checkUserAccess(accessData, userFingerprint) {
+        if (!accessData) return false;
+        
+        // Check if globally disabled
+        if (!accessData.globalEnabled) {
+            return { authorized: false, reason: 'disabled', message: accessData.message?.disabled };
+        }
+        
+        // Check if access control is disabled (allow all)
+        if (!accessData.accessControl?.enabled) {
+            return { authorized: true };
+        }
+        
+        if (!userFingerprint) {
+            return { authorized: false, reason: 'no_fingerprint', message: 'Device fingerprint required' };
+        }
+        
+        const { mode, allowedFingerprints, blockedFingerprints } = accessData.accessControl;
+        
+        // Check blocked fingerprints first
+        if (blockedFingerprints && blockedFingerprints.includes(userFingerprint)) {
+            return { authorized: false, reason: 'blocked', message: accessData.message?.unauthorized };
+        }
+        
+        if (mode === 'whitelist') {
+            // Check fingerprint match
+            if (allowedFingerprints && allowedFingerprints.includes(userFingerprint)) {
+                return { authorized: true };
+            }
+            
+            return { authorized: false, reason: 'not_whitelisted', message: accessData.message?.unauthorized };
+        } else if (mode === 'blacklist') {
+            // In blacklist mode, allow everyone except blocked fingerprints
+            return { authorized: true };
+        }
+        
+        return { authorized: false, reason: 'unknown', message: accessData.message?.unauthorized };
+    }
+
+    async function verifyAccess() {
+        const now = Date.now();
+        
+        // Only check if it's been more than CHECK_INTERVAL since last check
+        if (accessControlData && (now - lastAccessCheck) < CHECK_INTERVAL) {
+            return { authorized: isAuthorized, data: accessControlData };
+        }
+        
+        console.log('Verifying user access...');
+        lastAccessCheck = now;
+        
+        // Fetch current access control data
+        accessControlData = await fetchAccessControl();
+        
+        // Get user fingerprint
+        userFingerprint = getUserFingerprint();
+        
+        // Check access
+        const accessResult = checkUserAccess(accessControlData, userFingerprint);
+        isAuthorized = accessResult.authorized;
+        
+        console.log('Access verification result:', accessResult);
+        console.log('User fingerprint:', userFingerprint);
+        
+        return { 
+            authorized: accessResult.authorized, 
+            reason: accessResult.reason,
+            message: accessResult.message,
+            data: accessControlData 
+        };
+    }
+
+    function showAccessDeniedMessage(reason, message) {
+        const deniedDiv = document.createElement('div');
+        deniedDiv.id = 'car-extractor-access-denied';
+        deniedDiv.innerHTML = `
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                        background: linear-gradient(180deg, #dc3545 0%, #c82333 100%); 
+                        color: white; padding: 20px; border-radius: 8px; 
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 10003; 
+                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                        max-width: 400px; text-align: center;">
+                <h3 style="margin: 0 0 15px 0;">🚫 Access Denied</h3>
+                <p style="margin: 0 0 15px 0;">${message || 'You are not authorized to use this tool.'}</p>
+                <p style="margin: 0 0 15px 0; font-size: 12px; opacity: 0.8;">
+                    Device: ${userFingerprint || 'Unknown'}<br>
+                    Reason: ${reason || 'Unknown'}
+                </p>
+                <button onclick="this.parentElement.parentElement.remove()" 
+                        style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); 
+                               color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    Close
+                </button>
+            </div>
+        `;
+        document.body.appendChild(deniedDiv);
+        
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (deniedDiv.parentElement) {
+                deniedDiv.remove();
+            }
+        }, 10000);
+    }
+
+    function showAccessStatus() {
+        const statusDiv = document.createElement('div');
+        statusDiv.id = 'car-extractor-access-status';
+        statusDiv.innerHTML = `
+            <div style="position: fixed; bottom: 10px; right: 10px; 
+                        background: rgba(40, 167, 69, 0.9); color: white; 
+                        padding: 8px 12px; border-radius: 4px; 
+                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                        font-size: 11px; z-index: 10002;">
+                ✅ Authorized Device: ${userFingerprint ? userFingerprint.substring(0, 12) + '...' : 'Unknown'}
+            </div>
+        `;
+        document.body.appendChild(statusDiv);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (statusDiv.parentElement) {
+                statusDiv.remove();
+            }
+        }, 3000);
+    }
+
+        // Create left ribbon UI
+    function createUI() {
+        const ribbon = document.createElement('div');
+        ribbon.id = 'car-extractor-ribbon';
+        ribbon.innerHTML = `
+            <div class="ribbon-header">
+                <span>CAR BATCH EXTRACTOR v1.0</span>
+                <button id="minimize-ribbon-btn" title="Minimize">-</button>
+            </div>
+            <div id="ribbon-content">
+                <button id="debug-page-btn">debug</button>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button id="start-extraction-btn">start</button>
+                    <button id="pause-extraction-btn" disabled>pause</button>
+                    <button id="stop-extraction-btn" disabled>stop</button>
+                </div>
+                <div id="progress-info">Ready to extract CAR data</div>
+                <div id="status-info">Waiting for input...</div>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button id="export-results-btn" disabled>export</button>
+                    <button id="clear-results-btn">clear</button>
+                </div>
+                <div id="car-results"></div>
+            </div>
+        `;
+        document.body.appendChild(ribbon);
+        
+        // Create minimized state button
+        const minimizedBtn = document.createElement('div');
+        minimizedBtn.id = 'ribbon-minimized-btn';
+        minimizedBtn.innerHTML = '📋';
+        minimizedBtn.title = 'Show CAR Extractor';
+        minimizedBtn.style.display = 'none';
+        document.body.appendChild(minimizedBtn);
+        
+        // Add event listeners
+        document.getElementById('debug-page-btn').addEventListener('click', debugPage);
+        document.getElementById('start-extraction-btn').addEventListener('click', startExtraction);
+        document.getElementById('pause-extraction-btn').addEventListener('click', pauseExtraction);
+        document.getElementById('stop-extraction-btn').addEventListener('click', stopExtraction);
+        document.getElementById('export-results-btn').addEventListener('click', exportResults);
+        document.getElementById('clear-results-btn').addEventListener('click', clearResults);
+        document.getElementById('minimize-ribbon-btn').addEventListener('click', minimizeRibbon);
+        document.getElementById('ribbon-minimized-btn').addEventListener('click', maximizeRibbon);
+        
+        // Create context menu for individual CAR refresh
+        createContextMenu();
+    }
+
+    // Add CSS for the ribbon
+    GM_addStyle(`
+        #car-extractor-ribbon {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, #0d1117 0%, #161b22 50%, #1c2128 100%);
+            color: #c9d1d9;
+            z-index: 10000;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.6);
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            overflow-y: auto;
+            padding: 15px;
+            border-right: 1px solid #30363d;
+        }
+        
+        #car-extractor-ribbon button {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+        }
+        
+        #car-extractor-ribbon button:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        #debug-page-btn {
+            background: rgba(33, 136, 209, 0.15) !important;
+            color: #58a6ff !important;
+        }
+        
+        #debug-page-btn:hover {
+            background: rgba(33, 136, 209, 0.25) !important;
+        }
+        
+        #start-extraction-btn {
+            background: rgba(46, 160, 67, 0.15) !important;
+            color: #56d364 !important;
+        }
+        
+        #start-extraction-btn:hover {
+            background: rgba(46, 160, 67, 0.25) !important;
+        }
+        
+        #pause-extraction-btn {
+            background: rgba(187, 128, 9, 0.15) !important;
+            color: #e3b341 !important;
+        }
+        
+        #pause-extraction-btn:hover {
+            background: rgba(187, 128, 9, 0.25) !important;
+        }
+        
+        #stop-extraction-btn {
+            background: rgba(218, 54, 51, 0.15) !important;
+            color: #f85149 !important;
+        }
+        
+        #stop-extraction-btn:hover {
+            background: rgba(218, 54, 51, 0.25) !important;
+        }
+        
+        #export-results-btn {
+            background: rgba(102, 117, 127, 0.15) !important;
+            color: #8b949e !important;
+        }
+        
+        #export-results-btn:hover {
+            background: rgba(102, 117, 127, 0.25) !important;
+        }
+        
+        #clear-results-btn {
+            background: rgba(240, 126, 37, 0.15) !important;
+            color: #ff8c42 !important;
+        }
+        
+        #clear-results-btn:hover {
+            background: rgba(240, 126, 37, 0.25) !important;
+        }
+        
+        .car-entry {
+            background: rgba(22, 27, 34, 0.6);
+            margin-bottom: 6px;
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 2px solid #21262d;
+            font-size: 11px;
+            line-height: 1.4;
+            border: 1px solid rgba(48, 54, 61, 0.5);
+            backdrop-filter: blur(3px);
+        }
+        
+        .car-entry.loading {
+            border-left-color: #e3b341;
+            background: rgba(187, 128, 9, 0.1);
+            border-color: rgba(187, 128, 9, 0.3);
+        }
+        
+        .car-entry.error {
+            border-left-color: #f85149;
+            background: rgba(218, 54, 51, 0.1);
+            border-color: rgba(218, 54, 51, 0.3);
+        }
+        
+        .car-entry:hover {
+            background: rgba(22, 27, 34, 0.8);
+            border-color: rgba(48, 54, 61, 0.8);
+        }
+        
+        .car-id {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: #58a6ff;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+        
+        .car-details {
+            color: #8b949e;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+        
+        .car-details div {
+            margin-bottom: 1px;
+        }
+        
+        .car-details strong {
+            color: #c9d1d9;
+            font-weight: 500;
+        }
+        
+        #progress-info {
+            font-size: 11px;
+            color: #7d8590;
+            min-height: 14px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: rgba(13, 17, 23, 0.5);
+            padding: 4px 8px;
+            border-radius: 3px;
+            border: 1px solid rgba(48, 54, 61, 0.3);
+        }
+        
+        #status-info {
+            font-size: 10px;
+            color: #656d76;
+            min-height: 12px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: rgba(13, 17, 23, 0.3);
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-style: italic;
+        }
+        
+        #car-results {
+            margin-top: 10px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        #car-results::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #car-results::-webkit-scrollbar-track {
+            background: rgba(13, 17, 23, 0.3);
+            border-radius: 3px;
+        }
+        
+        #car-results::-webkit-scrollbar-thumb {
+            background: rgba(48, 54, 61, 0.6);
+            border-radius: 3px;
+        }
+        
+        #car-results::-webkit-scrollbar-thumb:hover {
+            background: rgba(48, 54, 61, 0.8);
+        }
+        
+        /* Adjust main content to make space for ribbon */
+        body {
+            margin-left: 320px !important;
+            transition: margin-left 0.3s ease !important;
+        }
+        
+        body.ribbon-minimized {
+            margin-left: 0px !important;
+        }
+        
+        /* Add some terminal-like styling */
+        .ribbon-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #58a6ff;
+            font-weight: 600;
+            text-shadow: 0 0 5px rgba(88, 166, 255, 0.3);
+            margin-bottom: 15px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            padding-bottom: 8px;
+        }
+        
+        #minimize-ribbon-btn {
+            background: rgba(88, 166, 255, 0.15) !important;
+            color: #58a6ff !important;
+            border: 1px solid rgba(88, 166, 255, 0.3) !important;
+            border-radius: 3px !important;
+            padding: 2px 8px !important;
+            font-size: 12px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        #minimize-ribbon-btn:hover {
+            background: rgba(88, 166, 255, 0.25) !important;
+            transform: scale(1.05) !important;
+        }
+        
+        #ribbon-minimized-btn {
+            position: fixed;
+            left: 10px;
+            top: 10px;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            border: 2px solid #30363d;
+            border-radius: 8px;
+            color: #58a6ff;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 10001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.6);
+            transition: all 0.2s ease;
+        }
+        
+        #ribbon-minimized-btn:hover {
+            background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+            border-color: #58a6ff;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(88, 166, 255, 0.4);
+        }
+        
+        .car-context-menu {
+            position: fixed;
+            background: linear-gradient(180deg, #161b22 0%, #1c2128 100%);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 10002;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 11px;
+            min-width: 120px;
+            display: none;
+        }
+        
+        .car-context-menu-item {
+            padding: 6px 12px;
+            color: #c9d1d9;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .car-context-menu-item:hover {
+            background: rgba(88, 166, 255, 0.15);
+            color: #58a6ff;
+        }
+        
+        .car-context-menu-item:active {
+            background: rgba(88, 166, 255, 0.25);
+        }
+    `);
+
+    let extractionInProgress = false;
+    let shouldStop = false;
+    let isPaused = false;
+    let extractedData = [];
+    let currentCarIndex = 0;
+    let carLinks = [];
+    let selectedCarId = null;
+
+    // Function to minimize the ribbon
+    function minimizeRibbon() {
+        const ribbon = document.getElementById('car-extractor-ribbon');
+        const minimizedBtn = document.getElementById('ribbon-minimized-btn');
+        const body = document.body;
+        
+        if (ribbon && minimizedBtn) {
+            ribbon.style.display = 'none';
+            minimizedBtn.style.display = 'flex';
+            body.classList.add('ribbon-minimized');
+        }
+    }
+
+    // Function to maximize the ribbon
+    function maximizeRibbon() {
+        const ribbon = document.getElementById('car-extractor-ribbon');
+        const minimizedBtn = document.getElementById('ribbon-minimized-btn');
+        const body = document.body;
+        
+        if (ribbon && minimizedBtn) {
+            ribbon.style.display = 'block';
+            minimizedBtn.style.display = 'none';
+            body.classList.remove('ribbon-minimized');
+        }
+    }
+
+    // Function to create context menu for individual CAR refresh
+    function createContextMenu() {
+        const contextMenu = document.createElement('div');
+        contextMenu.id = 'car-context-menu';
+        contextMenu.className = 'car-context-menu';
+        contextMenu.innerHTML = `
+            <div class="car-context-menu-item" id="refresh-car-item">🔄 Refresh CAR</div>
+        `;
+        document.body.appendChild(contextMenu);
+        
+        // Add click listener for refresh action
+        document.getElementById('refresh-car-item').addEventListener('click', refreshSelectedCar);
+        
+        // Hide context menu when clicking elsewhere
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.car-context-menu')) {
+                contextMenu.style.display = 'none';
+            }
+        });
+        
+        // Prevent default context menu on the ribbon
+        document.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('#car-extractor-ribbon')) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    // Function to show context menu for a CAR entry
+    function showContextMenu(event, carId) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        selectedCarId = carId;
+        const contextMenu = document.getElementById('car-context-menu');
+        
+        if (contextMenu) {
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = event.pageX + 'px';
+            contextMenu.style.top = event.pageY + 'px';
+        }
+    }
+
+    // Function to refresh a specific CAR
+    async function refreshSelectedCar() {
+        if (!selectedCarId) return;
+        
+        const contextMenu = document.getElementById('car-context-menu');
+        if (contextMenu) {
+            contextMenu.style.display = 'none';
+        }
+        
+        console.log(`🔄 Refreshing CAR: ${selectedCarId}`);
+        updateStatus(`Refreshing ${selectedCarId}...`);
+        
+        // Find the CAR link from our stored links
+        const carLink = carLinks.find(link => link.carId === selectedCarId);
+        if (!carLink) {
+            console.error(`CAR link not found for ${selectedCarId}`);
+            updateStatus(`❌ Could not find link for ${selectedCarId}`);
+            return;
+        }
+        
+        // Update the entry to show loading state
+        const entryDiv = document.getElementById(`car-entry-${selectedCarId}`);
+        if (entryDiv) {
+            entryDiv.className = 'car-entry loading';
+            entryDiv.innerHTML = `
+                <div class="car-id">${selectedCarId}</div>
+                <div class="car-details">Refreshing...</div>
+            `;
+        }
+        
+        try {
+            // Process the single CAR
+            await processCarLink(carLink, 0, 1, true); // Pass true for refresh mode
+            updateStatus(`✅ Refreshed ${selectedCarId}`);
+        } catch (error) {
+            console.error('Error refreshing CAR:', error);
+            updateStatus(`❌ Failed to refresh ${selectedCarId}`);
+            
+            // Update entry with error
+            if (entryDiv) {
+                entryDiv.className = 'car-entry error';
+                entryDiv.innerHTML = `
+                    <div class="car-id">${selectedCarId}</div>
+                    <div class="car-details" style="color: #fca5a5;">Error: Failed to refresh</div>
+                `;
+            }
+        }
+        
+        selectedCarId = null;
+    }
+
+    // Helper function to format today's date for remarks
+    function formatTodayForRemarks() {
+        try {
+            const today = new Date();
+            
+            // Format as "DD MMM" (e.g., "02 Sep")
+            const day = today.getDate().toString().padStart(2, '0');
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = months[today.getMonth()];
+            
+            return `${day} ${month}`;
+        } catch (error) {
+            console.log('Error formatting today\'s date:', error);
+            return 'Today'; // Fallback
+        }
+    }
+
+    // Function to find all CAR links on the current page
+    function findCarLinks() {
+        console.log('Starting to find CAR links...');
+        
+        // Look for CAR number links in the table
+        const links = [];
+        
+        // Method 1: Find CAR number links directly
+        console.log('Method 1: Looking for CAR number links...');
+        const carLinks = Array.from(document.querySelectorAll('a'))
+            .filter(link => {
+                const text = link.textContent.trim();
+                const isCarLink = /^CAR-\d+$/.test(text);
+                console.log(`Link text: "${text}", matches CAR pattern: ${isCarLink}, href: ${link.href}`);
+                return isCarLink;
+            });
+        
+        console.log(`Found ${carLinks.length} CAR number links`);
+        
+        carLinks.forEach((link, index) => {
+            const carId = link.textContent.trim();
+            console.log(`CAR link ${index + 1}: ${carId} -> ${link.href}`);
+            
+            links.push({
+                carId: carId,
+                url: link.href,
+                element: link,
+                method: 'car-number-link'
+            });
+        });
+        
+        // Method 2: Look in table cells for CAR patterns
+        console.log('Method 2: Looking in table cells...');
+        const tableCells = document.querySelectorAll('td, th');
+        console.log(`Found ${tableCells.length} table cells to check`);
+        
+        tableCells.forEach((cell, index) => {
+            const cellText = cell.textContent.trim();
+            const carMatch = cellText.match(/^CAR-\d+$/);
+            if (carMatch) {
+                console.log(`Cell ${index}: Found CAR ${carMatch[0]}`);
+                
+                // Look for links within this cell
+                const cellLinks = cell.querySelectorAll('a');
+                if (cellLinks.length > 0) {
+                    const link = cellLinks[0];
+                    const carId = carMatch[0];
+                    
+                    if (!links.find(l => l.carId === carId)) {
+                        console.log(`  Adding link: ${link.href}`);
+                        links.push({
+                            carId: carId,
+                            url: link.href,
+                            element: link,
+                            method: 'table-cell'
+                        });
+                    }
+                }
+            }
+        });
+        
+        console.log(`Total unique CAR links found: ${links.length}`);
+        links.forEach((link, index) => {
+            console.log(`${index + 1}. ${link.carId} - ${link.url} (method: ${link.method})`);
+        });
+        
+        return links;
+    }
+
+    // Function to extract data from the current CAR details page
+    function extractDataFromCurrentPage() {
+        console.log('Starting data extraction from current page...');
+        
+        const data = {
+            carId: '',
+            raisedDate: '',
+            stageOwner: '',
+            targetDate: '',
+            status: '',
+            remarks: '',
+            error: null
+        };
+
+        try {
+            // Try to get CAR ID from URL or page
+            console.log('Extracting CAR ID...');
+            const urlMatch = window.location.href.match(/\/([A-Fa-f0-9-]+)#!/);
+            if (urlMatch) {
+                // Look for CAR ID on the page
+                const pageText = document.body.textContent;
+                const carMatch = pageText.match(/CAR-\d+/);
+                if (carMatch) {
+                    data.carId = carMatch[0];
+                    console.log('Found CAR ID:', data.carId);
+                }
+            }
+
+            // Extract Raised Date
+            console.log('Extracting raised date...');
+            const allLabels = document.querySelectorAll('div.details-label, .g-label, label');
+            console.log(`Found ${allLabels.length} label elements`);
+            
+            allLabels.forEach((label, index) => {
+                const labelText = (label.textContent || label.innerText).trim().toLowerCase();
+                if (labelText.includes('raised date') || labelText === 'raised date:') {
+                    console.log(`Found raised date label at index ${index}:`, labelText);
+                    let valueElement = label.nextElementSibling;
+                    if (!valueElement) {
+                        valueElement = label.parentElement.querySelector('.staticText, .g-value');
+                    }
+                    if (!valueElement && label.parentElement) {
+                        const parentText = label.parentElement.textContent;
+                        const dateMatch = parentText.match(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/);
+                        if (dateMatch) {
+                            data.raisedDate = dateMatch[0];
+                            console.log('Found raised date from parent:', data.raisedDate);
+                        }
+                    } else if (valueElement) {
+                        const dateMatch = valueElement.textContent.match(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/);
+                        if (dateMatch) {
+                            data.raisedDate = dateMatch[0];
+                            console.log('Found raised date from value element:', data.raisedDate);
+                        }
+                    }
+                }
+            });
+
+            // Extract stage information
+            console.log('Extracting stage information...');
+            const stages = document.querySelectorAll("li.stage-li");
+            console.log(`Found ${stages.length} stage elements`);
+            
+            let investigationCompleted = false;
+            let investigationData = {};
+            let qaData = {};
+
+            stages.forEach((stage, stageIndex) => {
+                console.log(`Processing stage ${stageIndex}...`);
+                
+                function findSiblingData(labelText) {
+                    const label = Array.from(stage.querySelectorAll('div.details-label'))
+                        .find(el => el.textContent.trim() === labelText);
+                    if (label && label.nextElementSibling) {
+                        const staticText = label.nextElementSibling.querySelector('.staticText');
+                        return staticText ? staticText.textContent.trim() : label.nextElementSibling.textContent.trim();
+                    }
+                    return null;
+                }
+
+                function findStaticTextData(labelText) {
+                    const label = Array.from(stage.querySelectorAll('div.details-label'))
+                        .find(el => el.textContent.trim() === labelText);
+                    if (label && label.nextElementSibling) {
+                        const staticTextContainer = label.nextElementSibling.querySelector('.staticTextContainer');
+                        return staticTextContainer ? staticTextContainer.textContent.trim() : null;
+                    }
+                    return null;
+                }
+
+                const stageText = stage.textContent || stage.innerText;
+                const lowerStageText = stageText.toLowerCase();
+                console.log(`Stage ${stageIndex} text contains:`, lowerStageText.substring(0, 100));
+
+                if (lowerStageText.includes('investigation')) {
+                    console.log('Found investigation stage');
+                    const owner = findSiblingData("Stage Owner:");
+                    const targetDate = findStaticTextData("Target Date");
+                    const completedDate = findSiblingData("Completed date");
+                    const status = findSiblingData("Status:");
+
+                    investigationData = {
+                        owner: owner ? owner.replace(/Cancel|Save/g, '').trim() : '',
+                        targetDate: targetDate ? targetDate.replace(/Cancel|Save/g, '').trim() : 
+                                   (completedDate ? completedDate.replace(/Cancel|Save/g, '').trim() : ''),
+                        status: status ? status.replace(/Cancel|Save/g, '').trim() : ''
+                    };
+                    
+                    console.log('Investigation data:', investigationData);
+
+                    if (completedDate || (status && status.toLowerCase().includes('complete'))) {
+                        investigationCompleted = true;
+                        console.log('Investigation marked as completed');
+                    }
+                }
+
+                if (lowerStageText.includes('qa') && lowerStageText.includes('follow')) {
+                    console.log('Found QA follow-up stage');
+                    const owner = findSiblingData("Stage Owner:");
+                    const targetDate = findStaticTextData("Target Date");
+                    const completedDate = findSiblingData("Completed date");
+                    const status = findSiblingData("Status:");
+
+                    qaData = {
+                        owner: owner ? owner.replace(/Cancel|Save/g, '').trim() : '',
+                        targetDate: targetDate ? targetDate.replace(/Cancel|Save/g, '').trim() : 
+                                   (completedDate ? completedDate.replace(/Cancel|Save/g, '').trim() : ''),
+                        status: status ? status.replace(/Cancel|Save/g, '').trim() : ''
+                    };
+                    
+                    console.log('QA data:', qaData);
+                }
+            });
+
+            // Determine which stage to show
+            console.log('Determining which stage to show...');
+            console.log('Investigation completed:', investigationCompleted);
+            console.log('QA data available:', !!qaData.owner);
+            
+            if (investigationCompleted && qaData.owner) {
+                data.stageOwner = qaData.owner;
+                data.targetDate = qaData.targetDate;
+                data.status = 'QA Follow-up';
+                
+                // Create remarks with today's date and stage info
+                const todayFormatted = formatTodayForRemarks();
+                data.remarks = `${todayFormatted}: QA Follow-up ${qaData.owner}`;
+                
+                console.log('Using QA data');
+            } else if (investigationData.owner) {
+                data.stageOwner = investigationData.owner;
+                data.targetDate = investigationData.targetDate;
+                data.status = 'Investigation';
+                
+                // Create remarks with today's date and stage info
+                const todayFormatted = formatTodayForRemarks();
+                data.remarks = `${todayFormatted}: Investigation ${investigationData.owner}`;
+                
+                console.log('Using Investigation data');
+            }
+
+            console.log('Final extracted data:', data);
+
+        } catch (error) {
+            console.error('Error during data extraction:', error);
+            data.error = error.message;
+        }
+
+        return data;
+    }
+
+    // Function to handle data extraction in a CAR details window
+    function handleCarDetailsWindow() {
+        console.log('🔍 CAR details window loaded, checking for extraction task...');
+        console.log('Window name:', window.name);
+        
+        // Try to find the extraction task that matches this window
+        const allKeys = Object.keys(sessionStorage);
+        const extractionKeys = allKeys.filter(key => key.startsWith('carExtraction_'));
+        
+        console.log('Available extraction keys:', extractionKeys);
+        
+        if (extractionKeys.length === 0) {
+            console.log('❌ No extraction task found for this window');
+            console.log('All sessionStorage keys:', allKeys);
+            return;
+        }
+        
+        // Find the most recent extraction task or one that matches the window name
+        let extractionInfo = null;
+        let extractionKey = null;
+        
+        if (window.name && window.name.includes('car_window_')) {
+            // Try to match by window name
+            const windowId = window.name.replace('car_window_', '');
+            extractionKey = `carExtraction_${windowId}`;
+            if (sessionStorage.getItem(extractionKey)) {
+                extractionInfo = JSON.parse(sessionStorage.getItem(extractionKey));
+                console.log('✅ Found extraction task by window name:', extractionInfo);
+            }
+        }
+        
+        // If not found by window name, use the first available one
+        if (!extractionInfo && extractionKeys.length > 0) {
+            extractionKey = extractionKeys[0];
+            extractionInfo = JSON.parse(sessionStorage.getItem(extractionKey));
+            console.log('📋 Using first available extraction task:', extractionInfo);
+        }
+        
+        if (!extractionInfo) {
+            console.log('❌ Could not find valid extraction info');
+            return;
+        }
+        
+        // Mark this extraction as being processed to avoid conflicts
+        extractionInfo.processing = true;
+        sessionStorage.setItem(extractionKey, JSON.stringify(extractionInfo));
+        
+        // Wait for page to load completely, then extract data
+        setTimeout(() => {
+            console.log(`🚀 Extracting data for ${extractionInfo.carId} (${extractionInfo.extractionId})...`);
+            console.log('Current page title:', document.title);
+            console.log('Page fully loaded, checking for stage elements...');
+            
+            // Check if stage elements exist
+            const stages = document.querySelectorAll("li.stage-li");
+            console.log(`Found ${stages.length} stage elements`);
+            
+            const carData = extractDataFromCurrentPage();
+            carData.carId = extractionInfo.carId; // Ensure correct CAR ID
+            
+            console.log(`📊 Extracted data for ${extractionInfo.carId}:`, carData);
+            
+            // Send data back to parent window
+            if (window.opener && !window.opener.closed) {
+                console.log('📤 Sending data to parent window...');
+                window.opener.postMessage({
+                    type: 'CAR_DATA_EXTRACTED',
+                    extractionId: extractionInfo.extractionId,
+                    carData: carData
+                }, '*');
+                
+                console.log('✅ Data sent to parent window');
+                
+                // Clean up this extraction task immediately
+                sessionStorage.removeItem(extractionKey);
+                
+                // Close the window after a brief delay
+                setTimeout(() => {
+                    console.log('🔚 Closing popup window...');
+                    window.close();
+                }, 1000);
+            } else {
+                console.error('❌ Parent window not available');
+                sessionStorage.removeItem(extractionKey);
+                window.close();
+            }
+            
+        }, 5000); // Wait 5 seconds for page to fully load
+    }
+
+    // Function to process a single CAR by opening it in a new window
+    async function processCarLink(carLink, index, total, isRefresh = false) {
+        return new Promise((resolve) => {
+            if (!isRefresh) {
+                updateStatus(`Opening ${carLink.carId} (${index + 1}/${total}) in new window...`);
+                // Add loading entry to ribbon
+                addCarEntry(carLink.carId, null, true);
+            }
+            
+            console.log(`Opening ${carLink.carId} in new window: ${carLink.url}`);
+            
+            // Create a unique identifier for this extraction using more specificity
+            const extractionId = `${Date.now()}_${index}_${carLink.carId.replace(/[^a-zA-Z0-9]/g, '')}`;
+            
+            // Store extraction info that the new window can access
+            sessionStorage.setItem(`carExtraction_${extractionId}`, JSON.stringify({
+                carId: carLink.carId,
+                index: index,
+                total: total,
+                extractionId: extractionId,
+                isRefresh: isRefresh
+            }));
+            
+            // Open the CAR details page in a new window with unique window name
+            const detailsUrl = carLink.url + '#!/details';
+            const windowName = `car_window_${extractionId}`;
+            const newWindow = window.open(detailsUrl, windowName, 'width=1200,height=800');
+            
+            let resolved = false; // Flag to prevent multiple resolutions
+            
+            // Set up a message listener to receive data from the new window
+            const messageHandler = (event) => {
+                // More specific check for this exact extraction
+                if (event.data && 
+                    event.data.type === 'CAR_DATA_EXTRACTED' && 
+                    event.data.extractionId === extractionId &&
+                    !resolved) {
+                    
+                    resolved = true; // Mark as resolved to prevent duplicates
+                    
+                    console.log(`✅ Received data for ${carLink.carId} (${extractionId}):`, event.data.carData);
+                    
+                    // Handle refresh mode differently
+                    if (isRefresh) {
+                        // Update existing data in extractedData array
+                        const existingIndex = extractedData.findIndex(data => data.carId === carLink.carId);
+                        if (existingIndex !== -1) {
+                            extractedData[existingIndex] = event.data.carData;
+                        } else {
+                            extractedData.push(event.data.carData);
+                        }
+                    } else {
+                        // Normal mode - add to array
+                        extractedData.push(event.data.carData);
+                        updateProgress(index + 1, total);
+                    }
+                    
+                    // Update the ribbon with extracted data
+                    updateCarEntry(carLink.carId, event.data.carData);
+                    
+                    // Clean up the message listener first
+                    window.removeEventListener('message', messageHandler);
+                    
+                    // Immediate cleanup and resolution
+                    sessionStorage.removeItem(`carExtraction_${extractionId}`);
+                    
+                    // Close the new window
+                    if (newWindow && !newWindow.closed) {
+                        newWindow.close();
+                    }
+                    
+                    // Resolve immediately
+                    resolve();
+                }
+            };
+            
+            window.addEventListener('message', messageHandler);
+            
+            // Set up a timeout in case the new window doesn't respond
+            const timeoutId = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    console.log(`⏰ Timeout reached for ${carLink.carId} (${extractionId})`);
+                    
+                    if (newWindow && !newWindow.closed) {
+                        newWindow.close();
+                    }
+                    window.removeEventListener('message', messageHandler);
+                    sessionStorage.removeItem(`carExtraction_${extractionId}`);
+                    
+                    // Add error entry if we didn't get data
+                    const errorData = {
+                        carId: carLink.carId,
+                        error: 'Timeout - window did not respond'
+                    };
+                    updateCarEntry(carLink.carId, errorData);
+                    
+                    if (!isRefresh) {
+                        extractedData.push(errorData);
+                    }
+                    
+                    resolve();
+                }
+            }, 20000); // Increased to 20 second timeout
+            
+            // Also listen for window close events to clean up
+            const checkWindowClosed = setInterval(() => {
+                if (newWindow.closed && !resolved) {
+                    resolved = true;
+                    clearInterval(checkWindowClosed);
+                    clearTimeout(timeoutId);
+                    window.removeEventListener('message', messageHandler);
+                    sessionStorage.removeItem(`carExtraction_${extractionId}`);
+                    
+                    console.log(`🔴 Window closed before data received for ${carLink.carId}`);
+                    const errorData = {
+                        carId: carLink.carId,
+                        error: 'Window closed before data extraction'
+                    };
+                    updateCarEntry(carLink.carId, errorData);
+                    
+                    if (!isRefresh) {
+                        extractedData.push(errorData);
+                    }
+                    
+                    resolve();
+                }
+            }, 1000);
+        });
+    }
+
+    // Function to add a CAR entry to the ribbon
+    function addCarEntry(carId, data, isLoading = false) {
+        const resultsDiv = document.getElementById('car-results');
+        
+        let entryClass = 'car-entry';
+        if (isLoading) entryClass += ' loading';
+        if (data && data.error) entryClass += ' error';
+        
+        const entryDiv = document.createElement('div');
+        entryDiv.className = entryClass;
+        entryDiv.id = `car-entry-${carId}`;
+        
+        if (isLoading) {
+            entryDiv.innerHTML = `
+                <div class="car-id">${carId}</div>
+                <div class="car-details">Loading...</div>
+            `;
+        } else if (data && data.error) {
+            entryDiv.innerHTML = `
+                <div class="car-id">${carId}</div>
+                <div class="car-details" style="color: #fca5a5;">Error: ${data.error}</div>
+            `;
+        } else if (data) {
+            entryDiv.innerHTML = `
+                <div class="car-id">${carId}</div>
+                <div class="car-details">
+                    <div><strong>Raised:</strong> ${data.raisedDate || 'Unknown'}</div>
+                    <div><strong>Owner:</strong> ${data.stageOwner || 'Unknown'}</div>
+                    <div><strong>Target:</strong> ${data.targetDate || 'Unknown'}</div>
+                    <div><strong>Status:</strong> ${data.status || 'Unknown'}</div>
+                    <div><strong>Remarks:</strong> ${data.remarks || 'Unknown'}</div>
+                </div>
+            `;
+        }
+        
+        // Add right-click context menu functionality
+        entryDiv.addEventListener('contextmenu', (e) => showContextMenu(e, carId));
+        
+        resultsDiv.appendChild(entryDiv);
+        resultsDiv.scrollTop = resultsDiv.scrollHeight;
+    }
+
+    // Function to update an existing CAR entry
+    function updateCarEntry(carId, data) {
+        const entryDiv = document.getElementById(`car-entry-${carId}`);
+        if (entryDiv) {
+            entryDiv.className = 'car-entry' + (data.error ? ' error' : '');
+            
+            if (data.error) {
+                entryDiv.innerHTML = `
+                    <div class="car-id">${carId}</div>
+                    <div class="car-details" style="color: #fca5a5;">Error: ${data.error}</div>
+                `;
+            } else {
+                entryDiv.innerHTML = `
+                    <div class="car-id">${carId}</div>
+                    <div class="car-details">
+                        <div><strong>Raised:</strong> ${data.raisedDate || 'Unknown'}</div>
+                        <div><strong>Owner:</strong> ${data.stageOwner || 'Unknown'}</div>
+                        <div><strong>Target:</strong> ${data.targetDate || 'Unknown'}</div>
+                        <div><strong>Status:</strong> ${data.status || 'Unknown'}</div>
+                        <div><strong>Remarks:</strong> ${data.remarks || 'Unknown'}</div>
+                    </div>
+                `;
+            }
+            
+            // Re-add right-click context menu functionality
+            entryDiv.removeEventListener('contextmenu', entryDiv._contextMenuHandler);
+            entryDiv._contextMenuHandler = (e) => showContextMenu(e, carId);
+            entryDiv.addEventListener('contextmenu', entryDiv._contextMenuHandler);
+        }
+        
+        // Also log the update for debugging
+        console.log(`Updated ribbon entry for ${carId}:`, data);
+    }
+
+    // Function to update status message
+    function updateStatus(message) {
+        const statusElement = document.getElementById('status-info');
+        if (statusElement) {
+            statusElement.textContent = message;
+        }
+    }
+
+    // Function to update progress bar
+    function updateProgress(current, total) {
+        const progressElement = document.getElementById('progress-info');
+        if (progressElement) {
+            if (total === 0) {
+                progressElement.textContent = 'Ready to extract CAR data';
+            } else {
+                progressElement.textContent = `Progress: ${current}/${total} (${Math.round((current/total)*100)}%)`;
+            }
+        }
+    }
+
+    // Main extraction function
+    async function startExtraction() {
+        if (extractionInProgress && !isPaused) return;
+        
+        // Update button states
+        updateButtonStates('extracting');
+        
+        if (isPaused) {
+            // Resume extraction
+            isPaused = false;
+            updateStatus(`🔄 Resuming extraction from CAR ${currentCarIndex + 1}/${carLinks.length}...`);
+            console.log('=== RESUMING EXTRACTION ===');
+        } else {
+            // Start new extraction
+            extractionInProgress = true;
+            shouldStop = false;
+            isPaused = false;
+            extractedData = [];
+            currentCarIndex = 0;
+            
+            updateStatus('Finding CAR links...');
+            
+            // Clear previous results first
+            document.getElementById('car-results').innerHTML = '';
+            
+            console.log('=== STARTING CAR LINK DETECTION ===');
+            console.log('Page URL:', window.location.href);
+            console.log('Page title:', document.title);
+            
+            carLinks = findCarLinks();
+            
+            if (carLinks.length === 0) {
+                updateStatus('❌ No CAR links found on this page');
+                console.log('=== NO LINKS FOUND ===');
+                
+                extractionInProgress = false;
+                updateButtonStates('idle');
+                return;
+            }
+            
+            updateStatus(`✅ Found ${carLinks.length} CARs. Starting window-based extraction...`);
+            console.log('=== STARTING EXTRACTION ===');
+        }
+        
+        // Process CARs sequentially starting from currentCarIndex
+        for (let i = currentCarIndex; i < carLinks.length; i++) {
+            if (shouldStop) {
+                updateStatus('⏹️ Extraction stopped by user');
+                break;
+            }
+            
+            if (isPaused) {
+                currentCarIndex = i;
+                updateStatus(`⏸️ Extraction paused at CAR ${i + 1}/${carLinks.length}`);
+                updateButtonStates('paused');
+                return;
+            }
+            
+            currentCarIndex = i;
+            console.log(`🔄 Processing CAR ${i + 1}/${carLinks.length}: ${carLinks[i].carId}`);
+            
+            // Process one CAR at a time and wait for completion
+            await processCarLink(carLinks[i], i, carLinks.length);
+            
+            console.log(`✅ Completed processing ${carLinks[i].carId}`);
+            
+            // Small delay between requests to be respectful and prevent conflicts
+            if (i < carLinks.length - 1) { // Don't delay after the last CAR
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+        
+        if (!shouldStop && !isPaused) {
+            updateStatus(`🎉 Extraction complete! Processed ${extractedData.length} CARs`);
+            console.log('=== EXTRACTION COMPLETE ===');
+            extractionInProgress = false;
+            updateButtonStates('completed');
+        }
+    }
+
+    // Function to pause extraction
+    function pauseExtraction() {
+        isPaused = true;
+        updateStatus(`⏸️ Pausing extraction after current CAR...`);
+        console.log('=== PAUSING EXTRACTION ===');
+    }
+
+    // Function to stop extraction
+    function stopExtraction() {
+        shouldStop = true;
+        isPaused = false;
+        extractionInProgress = false;
+        updateStatus('⏹️ Stopping extraction...');
+        console.log('=== STOPPING EXTRACTION ===');
+        updateButtonStates('idle');
+    }
+
+    // Function to update button states
+    function updateButtonStates(state) {
+        const startBtn = document.getElementById('start-extraction-btn');
+        const pauseBtn = document.getElementById('pause-extraction-btn');
+        const stopBtn = document.getElementById('stop-extraction-btn');
+        const exportBtn = document.getElementById('export-results-btn');
+        const clearBtn = document.getElementById('clear-results-btn');
+        
+        switch (state) {
+            case 'idle':
+                if (startBtn) {
+                    startBtn.disabled = false;
+                    startBtn.textContent = 'Start';
+                    startBtn.style.background = '#28a745';
+                }
+                if (pauseBtn) pauseBtn.disabled = true;
+                if (stopBtn) stopBtn.disabled = true;
+                if (exportBtn) exportBtn.disabled = extractedData.length === 0;
+                if (clearBtn) clearBtn.disabled = false;
+                break;
+                
+            case 'extracting':
+                if (startBtn) {
+                    startBtn.disabled = true;
+                    startBtn.textContent = 'Running...';
+                    startBtn.style.background = '#6c757d';
+                }
+                if (pauseBtn) pauseBtn.disabled = false;
+                if (stopBtn) stopBtn.disabled = false;
+                if (exportBtn) exportBtn.disabled = true;
+                if (clearBtn) clearBtn.disabled = true;
+                break;
+                
+            case 'paused':
+                if (startBtn) {
+                    startBtn.disabled = false;
+                    startBtn.textContent = 'Resume';
+                    startBtn.style.background = '#17a2b8';
+                }
+                if (pauseBtn) pauseBtn.disabled = true;
+                if (stopBtn) stopBtn.disabled = false;
+                if (exportBtn) exportBtn.disabled = extractedData.length === 0;
+                if (clearBtn) clearBtn.disabled = false;
+                break;
+                
+            case 'completed':
+                if (startBtn) {
+                    startBtn.disabled = false;
+                    startBtn.textContent = 'Start';
+                    startBtn.style.background = '#28a745';
+                }
+                if (pauseBtn) pauseBtn.disabled = true;
+                if (stopBtn) stopBtn.disabled = true;
+                if (exportBtn) exportBtn.disabled = extractedData.length === 0;
+                if (clearBtn) clearBtn.disabled = false;
+                break;
+        }
+    }
+
+    // Function to clear results
+    function clearResults() {
+        document.getElementById('car-results').innerHTML = '';
+        extractedData = [];
+        currentCarIndex = 0;
+        carLinks = [];
+        updateStatus('Results cleared - ready for new extraction');
+        updateButtonStates('idle');
+        
+        // Update progress info
+        updateProgress(0, 0);
+    }
+
+    // Function to debug the current page
+    function debugPage() {
+        console.log('=== PAGE DEBUG INFO ===');
+        console.log('URL:', window.location.href);
+        console.log('Title:', document.title);
+        
+        // Show page structure
+        console.log('Tables:', document.querySelectorAll('table').length);
+        console.log('Rows:', document.querySelectorAll('tr').length);
+        console.log('Links:', document.querySelectorAll('a').length);
+        
+        // Show all CAR references
+        const pageText = document.body.textContent;
+        const carMatches = pageText.match(/CAR-\d+/g);
+        console.log('CAR IDs found:', carMatches);
+        
+        // Show first 10 links
+        const links = document.querySelectorAll('a');
+        console.log('First 10 links:');
+        for (let i = 0; i < Math.min(10, links.length); i++) {
+            console.log(`  ${i + 1}. "${links[i].textContent.trim()}" -> ${links[i].href}`);
+        }
+        
+        // Try to find the specific links we need
+        const reportLinks = document.querySelectorAll('a[href*="/Reporting/Report/Index/"]');
+        console.log(`Report/Index links: ${reportLinks.length}`);
+        reportLinks.forEach((link, i) => {
+            console.log(`  Report link ${i + 1}: ${link.href}`);
+        });
+        
+        // Look for kendo grid or other data structures
+        const kendoGrids = document.querySelectorAll('.k-grid, [data-role="grid"]');
+        console.log('Kendo grids found:', kendoGrids.length);
+        
+        const tables = document.querySelectorAll('table');
+        tables.forEach((table, i) => {
+            console.log(`Table ${i + 1}: class="${table.className}", id="${table.id}", rows=${table.querySelectorAll('tr').length}`);
+        });
+        
+        updateStatus('Debug info logged to console - press F12 to view');
+    }
+
+    // Function to export results
+    function exportResults() {
+        if (extractedData.length === 0) {
+            alert('No data to export. Please run extraction first.');
+            return;
+        }
+        
+        console.log('=== EXPORTING RESULTS ===');
+        console.log(`Exporting ${extractedData.length} records`);
+        
+        // Create CSV header
+        let csvContent = 'CAR No,Raised Date,Stage Owner,Target Date,Status,Remarks\n';
+        
+        // Add data rows
+        let successfulExports = 0;
+        extractedData.forEach((data, index) => {
+            if (!data.error) {
+                const row = [
+                    data.carId || '',
+                    data.raisedDate || '',
+                    data.stageOwner || '',
+                    data.targetDate || '',
+                    data.status || '',
+                    data.remarks || ''
+                ].map(field => {
+                    // Escape quotes and wrap in quotes
+                    const escaped = String(field).replace(/"/g, '""');
+                    return `"${escaped}"`;
+                }).join(',');
+                
+                csvContent += row + '\n';
+                successfulExports++;
+                console.log(`Row ${index + 1}: ${data.carId} - ${data.stageOwner} - ${data.remarks}`);
+            } else {
+                console.log(`Skipping row ${index + 1} due to error: ${data.error}`);
+            }
+        });
+        
+        console.log(`Successfully exported ${successfulExports} rows out of ${extractedData.length} total`);
+        
+        // Create and download the file
+        try {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `car_data_${new Date().toISOString().split('T')[0]}_${new Date().toTimeString().split(' ')[0].replace(/:/g, '')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            updateStatus(`✅ Exported ${successfulExports} CARs to CSV file`);
+            console.log('=== EXPORT COMPLETE ===');
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Error exporting data. Please check console for details.');
+            updateStatus('❌ Export failed');
+        }
+    }
+
+    // Initialize the UI when the page loads
+    async function init() {
+        console.log('Initializing CAR Batch Extractor...');
+        console.log('Current URL:', window.location.href);
+        
+        // First, verify access before doing anything else
+        const accessResult = await verifyAccess();
+        
+        if (!accessResult.authorized) {
+            console.log('Access denied:', accessResult.reason);
+            showAccessDeniedMessage(accessResult.reason, accessResult.message);
+            return; // Stop initialization
+        }
+        
+        console.log('Access granted for device fingerprint:', userFingerprint);
+        showAccessStatus();
+        
+        // Check if we're on a CAR details page (has #!/details)
+        if (window.location.href.includes('#!/details')) {
+            console.log('Detected CAR details page');
+            
+            // Check if this is a popup window for data extraction
+            if (window.opener) {
+                console.log('This is a popup window, handling data extraction...');
+                handleCarDetailsWindow();
+                return;
+            } else {
+                console.log('This is not a popup window, skipping extraction');
+                return;
+            }
+        }
+        
+        // Check if we're on the main CAR list page
+        if (window.location.href.includes('/Reporting/ReportingManagement')) {
+            console.log('Detected CAR list page');
+            
+            // Wait for the page to be fully loaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    setTimeout(() => {
+                        createUI();
+                        updateButtonStates('idle'); // Initialize button states
+                        
+                        // Set up periodic access checks
+                        setInterval(async () => {
+                            const recheckResult = await verifyAccess();
+                            if (!recheckResult.authorized && isAuthorized) {
+                                // Access was revoked
+                                console.log('Access revoked during session');
+                                showAccessDeniedMessage(recheckResult.reason, recheckResult.message);
+                                
+                                // Hide the UI
+                                const ribbon = document.getElementById('car-extractor-ribbon');
+                                if (ribbon) ribbon.style.display = 'none';
+                                
+                                // Stop any ongoing extraction
+                                stopExtraction();
+                            }
+                        }, CHECK_INTERVAL);
+                    }, 1000);
+                });
+            } else {
+                setTimeout(() => {
+                    createUI();
+                    updateButtonStates('idle'); // Initialize button states
+                    
+                    // Set up periodic access checks
+                    setInterval(async () => {
+                        const recheckResult = await verifyAccess();
+                        if (!recheckResult.authorized && isAuthorized) {
+                            // Access was revoked
+                            console.log('Access revoked during session');
+                            showAccessDeniedMessage(recheckResult.reason, recheckResult.message);
+                            
+                            // Hide the UI
+                            const ribbon = document.getElementById('car-extractor-ribbon');
+                            if (ribbon) ribbon.style.display = 'none';
+                            
+                            // Stop any ongoing extraction
+                            stopExtraction();
+                        }
+                    }, CHECK_INTERVAL);
+                }, 1000);
+            }
+        }
+    }
+
+    // Start the initialization
+    init();
+
+})();
