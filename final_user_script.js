@@ -36,58 +36,6 @@
         retries: 2
     };
     
-    // Anti-debugging protection
-    let debugDetected = false;
-    const protectionInterval = setInterval(function() {
-        const widthThreshold = 160;
-        const heightThreshold = 160;
-        
-        if (window.outerHeight - window.innerHeight > heightThreshold || 
-            window.outerWidth - window.innerWidth > widthThreshold) {
-            if (!debugDetected) {
-                debugDetected = true;
-                console.clear();
-                console.log('%c🔒 ENTERPRISE SECURITY NOTICE', 'color: #ff6b6b; font-size: 18px; font-weight: bold; background: #000; padding: 10px;');
-                console.log('%cThis is a proprietary enterprise application.', 'color: #ff6b6b; font-size: 14px;');
-                console.log('%cUnauthorized inspection or reverse engineering is prohibited.', 'color: #ff6b6b; font-size: 14px;');
-                console.log('%cYour access is being monitored and logged.', 'color: #ff6b6b; font-size: 14px;');
-                
-                // Optional: Could send security event to server
-                // reportSecurityEvent('dev_tools_detected');
-            }
-        } else {
-            debugDetected = false;
-        }
-    }, 800);
-    
-    // Clear console when debug tools are detected
-    const clearInterval = setInterval(() => {
-        if (debugDetected) {
-            console.clear();
-            console.log('%c🔒 MONITORING ACTIVE', 'color: #ff6b6b; font-size: 16px; font-weight: bold;');
-        }
-    }, 3000);
-    
-    // Disable common inspection shortcuts
-    document.addEventListener('keydown', function(e) {
-        // Block F12, Ctrl+Shift+I, Ctrl+Shift+C, Ctrl+U, Ctrl+S
-        if (e.keyCode === 123 || 
-            (e.ctrlKey && e.shiftKey && [73, 67, 74].includes(e.keyCode)) ||
-            (e.ctrlKey && [85, 83].includes(e.keyCode))) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('%c🚫 Action blocked - Unauthorized access attempt', 'color: #ff6b6b; font-weight: bold;');
-            return false;
-        }
-    }, true);
-    
-    // Disable right-click context menu
-    document.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-        console.log('%c🚫 Context menu disabled - Security policy', 'color: #ff6b6b;');
-        return false;
-    }, true);
-    
     function validateEnvironment() {
         const hostname = window.location.hostname;
         const isValid = hostname.includes(config.domain);
@@ -141,12 +89,6 @@
             eval(content);
             
             console.log('✅ Enterprise tool loaded successfully');
-            
-            // Clean up protection intervals after successful load
-            setTimeout(() => {
-                clearInterval(protectionInterval);
-                clearInterval(clearInterval);
-            }, 5000);
             
             return true;
         } catch (error) {
