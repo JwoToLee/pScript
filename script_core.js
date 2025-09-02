@@ -1605,10 +1605,30 @@
                 isRefresh: isRefresh
             }));
             
-            // Open the CAR details page in a new window with unique window name
+            // Update status to show background processing
+            if (!isRefresh) {
+                updateStatus(`Processing ${carLink.carId} in background... (${index + 1}/${total})`);
+            }
+            
+            // Open the CAR details page in a new window with unique window name (hidden)
             const detailsUrl = carLink.url + '#!/details';
             const windowName = `car_window_${extractionId}`;
-            const newWindow = window.open(detailsUrl, windowName, 'width=1200,height=800');
+            const newWindow = window.open(detailsUrl, windowName, 'width=1,height=1,left=-1000,top=-1000,resizable=no,scrollbars=no,toolbar=no,menubar=no,location=no,directories=no,status=no');
+            
+            // Hide the window immediately after opening
+            if (newWindow) {
+                try {
+                    // Move window off-screen and minimize it
+                    newWindow.moveTo(-2000, -2000);
+                    newWindow.resizeTo(1, 1);
+                    // Try to minimize the window (browser dependent)
+                    if (newWindow.minimize) {
+                        newWindow.minimize();
+                    }
+                } catch (error) {
+                    console.log('Could not fully hide window (browser security):', error);
+                }
+            }
             
             let resolved = false; // Flag to prevent multiple resolutions
             
