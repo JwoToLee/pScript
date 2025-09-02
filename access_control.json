@@ -1,15 +1,29 @@
 {
-  "version": "1.0",
-  "lastUpdated": "2025-09-02T00:00:00Z",
+  "version": "2.0",
+  "lastUpdated": "2025-09-02T12:00:00Z",
   "globalEnabled": true,
   "accessControl": {
     "enabled": true,
-    "mode": "whitelist",
-    "allowedFingerprints": [
-      "fp_TW96aWxsYS81LjAgKFdpbmRvd3MgTlQg",
-      "fp_TW96aWxsYS81LjAgKFdpbmRvd3MgTlQg2"
+    "mode": "login",
+    "allowedUsers": [
+      {
+        "username": "admin",
+        "password": "Admin123!",
+        "name": "Administrator",
+        "active": true,
+        "lastLogin": null
+      },
+      {
+        "username": "user1",
+        "password": "User123!",
+        "name": "User One",
+        "active": true,
+        "lastLogin": null
+      }
     ],
-    "blockedFingerprints": []
+    "sessionTimeout": 24,
+    "maxLoginAttempts": 3,
+    "lockoutDuration": 30
   },
   "features": {
     "extraction": true,
@@ -17,9 +31,12 @@
     "debug": true
   },
   "message": {
-    "unauthorized": "Access denied. Please contact your administrator to request access to this tool. Your fingerprint will be shown in the console (F12) - copy it and send it to the admin.",
+    "unauthorized": "Please log in to access this tool. Contact your administrator if you don't have credentials.",
     "disabled": "This tool is currently disabled for maintenance. Please try again later.",
-    "fingerprint_info": "Your device fingerprint will be used to verify access. Check the console (F12) to see your fingerprint."
+    "login_required": "Authentication required. Please enter your credentials to continue.",
+    "invalid_credentials": "Invalid username or password. Please try again.",
+    "account_locked": "Account temporarily locked due to too many failed attempts. Please try again later.",
+    "session_expired": "Your session has expired. Please log in again."
   },
   "adminContacts": [
     "admin@company.com"

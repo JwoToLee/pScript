@@ -21,160 +21,220 @@
     
     // Global variables for access control
     let accessControlData = null;
-    let userFingerprint = null;
+    let userCredentials = null;
     let isAuthorized = false;
     let lastAccessCheck = 0;
+    let loginAttempts = 0;
+    let isLockedOut = false;
+    let lockoutEndTime = null;
 
-    // Fingerprinting functions
-    function generateFingerprint() {
-        const components = [];
-        
+    // Login and session management functions
+    function getStoredCredentials() {
         try {
-            // Browser and system info
-            components.push(navigator.userAgent || '');
-            components.push(navigator.language || '');
-            components.push(navigator.platform || '');
-            components.push(navigator.cookieEnabled ? '1' : '0');
-            components.push(navigator.doNotTrack || '');
-            
-            // Screen info
-            components.push(screen.width + 'x' + screen.height);
-            components.push(screen.colorDepth || '');
-            components.push(screen.pixelDepth || '');
-            
-            // Timezone
-            components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
-            
-            // Hardware info
-            components.push(navigator.hardwareConcurrency || '');
-            components.push(navigator.deviceMemory || '');
-            
-            // WebGL fingerprint
-            const canvas = document.createElement('canvas');
-            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-            if (gl) {
-                const renderer = gl.getParameter(gl.RENDERER) || '';
-                const vendor = gl.getParameter(gl.VENDOR) || '';
-                components.push(renderer + vendor);
+            const stored = GM_getValue('userCredentials', null);
+            if (stored) {
+                const credentials = JSON.parse(stored);
+                // Check if session is still valid
+                const sessionAge = Date.now() - (credentials.loginTime || 0);
+                const maxAge = (accessControlData?.accessControl?.sessionTimeout || 24) * 60 * 60 * 1000;
+                
+                if (sessionAge < maxAge) {
+                    console.log('Valid session found for user:', credentials.username);
+                    return credentials;
+                } else {
+                    console.log('Session expired, clearing stored credentials');
+                    GM_setValue('userCredentials', null);
+                    return null;
+                }
             }
-            
-            // Canvas fingerprint
-            const ctx = canvas.getContext('2d');
-            ctx.textBaseline = 'top';
-            ctx.font = '14px Arial';
-            ctx.fillText('CAR Extractor Fingerprint', 2, 2);
-            components.push(canvas.toDataURL());
-            
-            // Audio context fingerprint
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const analyser = audioCtx.createAnalyser();
-                const gainNode = audioCtx.createGain();
-                
-                oscillator.connect(analyser);
-                analyser.connect(gainNode);
-                
-                components.push(audioCtx.sampleRate.toString());
-                components.push(analyser.frequencyBinCount.toString());
-                
-                audioCtx.close();
-            } catch (e) {
-                components.push('audio_unavailable');
-            }
-            
         } catch (error) {
-            console.warn('Error generating fingerprint component:', error);
+            console.warn('Error retrieving stored credentials:', error);
+            GM_setValue('userCredentials', null);
         }
-        
-        // Create hash of all components
-        const fingerprint = btoa(components.join('|')).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
-        const fullFingerprint = 'fp_' + fingerprint;
-        
-        // Log detailed fingerprint information to console for admin purposes
-        console.group('🔍 CAR Extractor - User Fingerprint Details');
-        console.log('📋 USER FINGERPRINT:', fullFingerprint);
-        console.log('');
-        console.log('🔧 For Admin: Copy this fingerprint to add to access control:');
-        console.log(`"${fullFingerprint}"`);
-        console.log('');
-        console.log('🔍 Fingerprint Components:');
-        console.log('User Agent:', navigator.userAgent);
-        console.log('Language:', navigator.language);
-        console.log('Platform:', navigator.platform);
-        console.log('Screen:', screen.width + 'x' + screen.height);
-        console.log('Timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
-        console.log('Hardware Concurrency:', navigator.hardwareConcurrency);
-        console.log('');
-        console.log('🔢 Raw Components Array:');
-        console.log(components);
-        console.groupEnd();
-        
-        // Also show a temporary notification on screen
-        showFingerprintNotification(fullFingerprint);
-        
-        return fullFingerprint;
+        return null;
     }
 
-    function showFingerprintNotification(fingerprint) {
-        const notification = document.createElement('div');
-        notification.id = 'fingerprint-notification';
-        notification.innerHTML = `
-            <div style="position: fixed; top: 20px; right: 20px; 
-                        background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); 
-                        color: white; padding: 15px 20px; border-radius: 8px; 
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 10004; 
+    function storeCredentials(username, password) {
+        const credentials = {
+            username: username,
+            password: password,
+            loginTime: Date.now()
+        };
+        GM_setValue('userCredentials', JSON.stringify(credentials));
+        console.log('Credentials stored for user:', username);
+        return credentials;
+    }
+
+    function clearStoredCredentials() {
+        GM_setValue('userCredentials', null);
+        userCredentials = null;
+        isAuthorized = false;
+        console.log('Stored credentials cleared');
+    }
+
+    function checkLockout() {
+        if (isLockedOut && lockoutEndTime && Date.now() > lockoutEndTime) {
+            isLockedOut = false;
+            lockoutEndTime = null;
+            loginAttempts = 0;
+            console.log('Lockout period expired, resetting attempts');
+        }
+        return isLockedOut;
+    }
+
+    function showLoginDialog() {
+        return new Promise((resolve) => {
+            // Check if already locked out
+            if (checkLockout()) {
+                const remainingTime = Math.ceil((lockoutEndTime - Date.now()) / 1000 / 60);
+                showLoginErrorMessage(`Account locked. Please wait ${remainingTime} minutes before trying again.`);
+                resolve(null);
+                return;
+            }
+
+            const loginDiv = document.createElement('div');
+            loginDiv.id = 'car-extractor-login';
+            loginDiv.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                            background: rgba(0,0,0,0.8); z-index: 10005; display: flex; 
+                            align-items: center; justify-content: center; font-family: 'Consolas', 'Monaco', 'Courier New', monospace;">
+                    <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); 
+                               color: white; padding: 30px; border-radius: 10px; 
+                               box-shadow: 0 10px 30px rgba(0,0,0,0.5); min-width: 400px;">
+                        <h2 style="margin: 0 0 20px 0; text-align: center; color: #3498db;">🔐 CAR Extractor Login</h2>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-size: 14px;">Username:</label>
+                            <input type="text" id="login-username" 
+                                   style="width: 100%; padding: 10px; border: 1px solid #34495e; 
+                                          border-radius: 5px; background: #ecf0f1; color: #2c3e50; 
+                                          font-family: 'Consolas', monospace; font-size: 14px;" 
+                                   placeholder="Enter your username">
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 5px; font-size: 14px;">Password:</label>
+                            <input type="password" id="login-password" 
+                                   style="width: 100%; padding: 10px; border: 1px solid #34495e; 
+                                          border-radius: 5px; background: #ecf0f1; color: #2c3e50; 
+                                          font-family: 'Consolas', monospace; font-size: 14px;" 
+                                   placeholder="Enter your password">
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button id="login-submit-btn" 
+                                    style="background: #3498db; color: white; border: none; 
+                                           padding: 12px 24px; border-radius: 5px; cursor: pointer; 
+                                           font-family: 'Consolas', monospace; font-size: 14px; font-weight: bold;">
+                                Login
+                            </button>
+                            <button id="login-cancel-btn" 
+                                    style="background: #95a5a6; color: white; border: none; 
+                                           padding: 12px 24px; border-radius: 5px; cursor: pointer; 
+                                           font-family: 'Consolas', monospace; font-size: 14px;">
+                                Cancel
+                            </button>
+                        </div>
+                        <div id="login-error-message" style="color: #e74c3c; margin-top: 15px; 
+                             text-align: center; font-size: 12px; display: none;"></div>
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #34495e; 
+                             font-size: 11px; color: #bdc3c7; text-align: center;">
+                            Contact admin@company.com for access credentials
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loginDiv);
+
+            const usernameInput = document.getElementById('login-username');
+            const passwordInput = document.getElementById('login-password');
+            const submitBtn = document.getElementById('login-submit-btn');
+            const cancelBtn = document.getElementById('login-cancel-btn');
+            const errorDiv = document.getElementById('login-error-message');
+
+            function showError(message) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+            }
+
+            function hideError() {
+                errorDiv.style.display = 'none';
+            }
+
+            function cleanup() {
+                if (loginDiv.parentElement) {
+                    loginDiv.remove();
+                }
+            }
+
+            function attemptLogin() {
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value;
+
+                hideError();
+
+                if (!username || !password) {
+                    showError('Please enter both username and password');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Logging in...';
+
+                setTimeout(() => {
+                    cleanup();
+                    resolve({ username, password });
+                }, 500);
+            }
+
+            submitBtn.addEventListener('click', attemptLogin);
+            cancelBtn.addEventListener('click', () => {
+                cleanup();
+                resolve(null);
+            });
+
+            // Handle Enter key
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    attemptLogin();
+                }
+            });
+
+            usernameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    passwordInput.focus();
+                }
+            });
+
+            // Focus on username input
+            setTimeout(() => usernameInput.focus(), 100);
+        });
+    }
+
+    function showLoginErrorMessage(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.id = 'car-extractor-login-error';
+        errorDiv.innerHTML = `
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                        background: linear-gradient(180deg, #dc3545 0%, #c82333 100%); 
+                        color: white; padding: 20px; border-radius: 8px; 
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 10006; 
                         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                        max-width: 350px; font-size: 12px; line-height: 1.4;">
-                <div style="font-weight: bold; margin-bottom: 8px; display: flex; align-items: center;">
-                    🔍 User Fingerprint Generated
-                    <button onclick="navigator.clipboard.writeText('${fingerprint}').then(() => {
-                        this.textContent = '✓ Copied!';
-                        setTimeout(() => this.textContent = '📋', 2000);
-                    })" 
-                            style="margin-left: auto; background: rgba(255,255,255,0.2); border: none; 
-                                   color: white; font-size: 12px; cursor: pointer; padding: 2px 6px; 
-                                   border-radius: 3px;">📋</button>
-                </div>
-                <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; 
-                           font-family: monospace; word-break: break-all; margin-bottom: 8px;">
-                    ${fingerprint}
-                </div>
-                <div style="font-size: 10px; opacity: 0.9;">
-                    Check console (F12) for detailed information
-                </div>
+                        max-width: 400px; text-align: center;">
+                <h3 style="margin: 0 0 15px 0;">🚫 Login Failed</h3>
+                <p style="margin: 0 0 15px 0;">${message}</p>
                 <button onclick="this.parentElement.parentElement.remove()" 
-                        style="position: absolute; top: 5px; right: 5px; 
-                               background: none; border: none; color: white; 
-                               font-size: 16px; cursor: pointer; padding: 0; width: 20px; height: 20px;">
-                    ×
+                        style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); 
+                               color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    Close
                 </button>
             </div>
         `;
-        document.body.appendChild(notification);
+        document.body.appendChild(errorDiv);
         
-        // Auto-remove after 30 seconds
+        // Auto-remove after 5 seconds
         setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
+            if (errorDiv.parentElement) {
+                errorDiv.remove();
             }
-        }, 30000);
-    }
-
-    function getUserFingerprint() {
-        // Try to get stored fingerprint first
-        let fingerprint = GM_getValue('userFingerprint', null);
-        
-        if (!fingerprint) {
-            // Generate new fingerprint
-            fingerprint = generateFingerprint();
-            GM_setValue('userFingerprint', fingerprint);
-            console.log('Generated new user fingerprint:', fingerprint);
-        } else {
-            console.log('Retrieved stored fingerprint:', fingerprint);
-        }
-        
-        return fingerprint;
+        }, 5000);
     }
 
     // Access control functions
@@ -255,8 +315,8 @@
         });
     }
 
-    function checkUserAccess(accessData, userFingerprint) {
-        if (!accessData) return false;
+    function checkUserAccess(accessData, credentials) {
+        if (!accessData) return { authorized: false, reason: 'no_data', message: 'Access control data unavailable' };
         
         // Check if globally disabled
         if (!accessData.globalEnabled) {
@@ -268,62 +328,128 @@
             return { authorized: true };
         }
         
-        if (!userFingerprint) {
-            return { authorized: false, reason: 'no_fingerprint', message: 'Device fingerprint required' };
+        if (!credentials || !credentials.username || !credentials.password) {
+            return { authorized: false, reason: 'no_credentials', message: 'Login credentials required' };
         }
         
-        const { mode, allowedFingerprints, blockedFingerprints } = accessData.accessControl;
+        const { allowedUsers } = accessData.accessControl;
         
-        // Check blocked fingerprints first
-        if (blockedFingerprints && blockedFingerprints.includes(userFingerprint)) {
-            return { authorized: false, reason: 'blocked', message: accessData.message?.unauthorized };
+        if (!allowedUsers || !Array.isArray(allowedUsers)) {
+            return { authorized: false, reason: 'config_error', message: 'Access control configuration error' };
         }
         
-        if (mode === 'whitelist') {
-            // Check fingerprint match
-            if (allowedFingerprints && allowedFingerprints.includes(userFingerprint)) {
-                return { authorized: true };
-            }
-            
-            return { authorized: false, reason: 'not_whitelisted', message: accessData.message?.unauthorized };
-        } else if (mode === 'blacklist') {
-            // In blacklist mode, allow everyone except blocked fingerprints
-            return { authorized: true };
+        // Find user in allowed users list
+        const user = allowedUsers.find(u => 
+            u.username === credentials.username && 
+            u.password === credentials.password &&
+            u.active === true
+        );
+        
+        if (user) {
+            console.log(`✅ Login successful for user: ${user.name} (${user.username})`);
+            return { 
+                authorized: true, 
+                user: {
+                    username: user.username,
+                    name: user.name
+                }
+            };
         }
         
-        return { authorized: false, reason: 'unknown', message: accessData.message?.unauthorized };
+        return { 
+            authorized: false, 
+            reason: 'invalid_credentials', 
+            message: accessData.message?.invalid_credentials || 'Invalid username or password'
+        };
     }
 
     async function verifyAccess() {
         const now = Date.now();
         
-        // Only check if it's been more than CHECK_INTERVAL since last check
-        if (accessControlData && (now - lastAccessCheck) < CHECK_INTERVAL) {
-            return { authorized: isAuthorized, data: accessControlData };
-        }
-        
         console.log('Verifying user access...');
-        lastAccessCheck = now;
         
         // Fetch current access control data
         accessControlData = await fetchAccessControl();
         
-        // Get user fingerprint
-        userFingerprint = getUserFingerprint();
+        // Check for stored credentials first
+        userCredentials = getStoredCredentials();
         
-        // Check access
-        const accessResult = checkUserAccess(accessControlData, userFingerprint);
-        isAuthorized = accessResult.authorized;
+        if (userCredentials) {
+            // Verify stored credentials
+            const accessResult = checkUserAccess(accessControlData, userCredentials);
+            
+            if (accessResult.authorized) {
+                isAuthorized = true;
+                lastAccessCheck = now;
+                console.log('Access granted using stored credentials for:', userCredentials.username);
+                return { 
+                    authorized: true, 
+                    user: accessResult.user,
+                    data: accessControlData 
+                };
+            } else {
+                // Stored credentials are invalid, clear them
+                console.log('Stored credentials invalid, clearing...');
+                clearStoredCredentials();
+            }
+        }
         
-        console.log('Access verification result:', accessResult);
-        console.log('User fingerprint:', userFingerprint);
+        // No valid stored credentials, need to login
+        console.log('No valid stored credentials, login required');
+        const credentials = await showLoginDialog();
         
-        return { 
-            authorized: accessResult.authorized, 
-            reason: accessResult.reason,
-            message: accessResult.message,
-            data: accessControlData 
-        };
+        if (!credentials) {
+            return { 
+                authorized: false, 
+                reason: 'login_cancelled',
+                message: 'Login cancelled by user',
+                data: accessControlData 
+            };
+        }
+        
+        // Verify the entered credentials
+        const accessResult = checkUserAccess(accessControlData, credentials);
+        
+        if (accessResult.authorized) {
+            // Store credentials for future use
+            userCredentials = storeCredentials(credentials.username, credentials.password);
+            isAuthorized = true;
+            lastAccessCheck = now;
+            loginAttempts = 0; // Reset failed attempts on successful login
+            
+            console.log('Access granted after login for:', credentials.username);
+            return { 
+                authorized: true, 
+                user: accessResult.user,
+                data: accessControlData 
+            };
+        } else {
+            // Login failed
+            loginAttempts++;
+            console.log(`Login failed. Attempt ${loginAttempts}/${accessControlData?.accessControl?.maxLoginAttempts || 3}`);
+            
+            const maxAttempts = accessControlData?.accessControl?.maxLoginAttempts || 3;
+            const lockoutDuration = accessControlData?.accessControl?.lockoutDuration || 30;
+            
+            if (loginAttempts >= maxAttempts) {
+                isLockedOut = true;
+                lockoutEndTime = Date.now() + (lockoutDuration * 60 * 1000);
+                console.log(`Account locked for ${lockoutDuration} minutes due to too many failed attempts`);
+                
+                return { 
+                    authorized: false, 
+                    reason: 'account_locked',
+                    message: accessControlData?.message?.account_locked || 'Account temporarily locked',
+                    data: accessControlData 
+                };
+            }
+            
+            // Show error and allow retry
+            showLoginErrorMessage(accessResult.message);
+            
+            // Recursively call verifyAccess to show login dialog again
+            return await verifyAccess();
+        }
     }
 
     function showAccessDeniedMessage(reason, message) {
@@ -339,7 +465,6 @@
                 <h3 style="margin: 0 0 15px 0;">🚫 Access Denied</h3>
                 <p style="margin: 0 0 15px 0;">${message || 'You are not authorized to use this tool.'}</p>
                 <p style="margin: 0 0 15px 0; font-size: 12px; opacity: 0.8;">
-                    Device: ${userFingerprint || 'Unknown'}<br>
                     Reason: ${reason || 'Unknown'}
                 </p>
                 <button onclick="this.parentElement.parentElement.remove()" 
@@ -359,7 +484,7 @@
         }, 10000);
     }
 
-    function showAccessStatus() {
+    function showAccessStatus(user) {
         const statusDiv = document.createElement('div');
         statusDiv.id = 'car-extractor-access-status';
         statusDiv.innerHTML = `
@@ -368,7 +493,7 @@
                         padding: 8px 12px; border-radius: 4px; 
                         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
                         font-size: 11px; z-index: 10002;">
-                ✅ Authorized Device: ${userFingerprint ? userFingerprint.substring(0, 12) + '...' : 'Unknown'}
+                ✅ Logged in as: ${user?.name || user?.username || 'User'}
             </div>
         `;
         document.body.appendChild(statusDiv);
@@ -391,7 +516,10 @@
                 <button id="minimize-ribbon-btn" title="Minimize">-</button>
             </div>
             <div id="ribbon-content">
-                <button id="debug-page-btn">debug</button>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button id="debug-page-btn">debug</button>
+                    <button id="logout-btn">logout</button>
+                </div>
                 <div style="display: flex; gap: 5px; margin-bottom: 10px;">
                     <button id="start-extraction-btn">start</button>
                     <button id="pause-extraction-btn" disabled>pause</button>
@@ -418,6 +546,7 @@
         
         // Add event listeners
         document.getElementById('debug-page-btn').addEventListener('click', debugPage);
+        document.getElementById('logout-btn').addEventListener('click', logout);
         document.getElementById('start-extraction-btn').addEventListener('click', startExtraction);
         document.getElementById('pause-extraction-btn').addEventListener('click', pauseExtraction);
         document.getElementById('stop-extraction-btn').addEventListener('click', stopExtraction);
@@ -471,6 +600,15 @@
         
         #debug-page-btn:hover {
             background: rgba(33, 136, 209, 0.25) !important;
+        }
+        
+        #logout-btn {
+            background: rgba(231, 76, 60, 0.15) !important;
+            color: #ff6b6b !important;
+        }
+        
+        #logout-btn:hover {
+            background: rgba(231, 76, 60, 0.25) !important;
         }
         
         #start-extraction-btn {
@@ -1585,7 +1723,33 @@
         updateProgress(0, 0);
     }
 
-    // Function to debug the current page
+    // Function to handle logout
+    function logout() {
+        if (confirm('Are you sure you want to logout? You will need to enter your credentials again next time.')) {
+            console.log('User logging out...');
+            clearStoredCredentials();
+            
+            // Show logout message
+            const logoutDiv = document.createElement('div');
+            logoutDiv.innerHTML = `
+                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); 
+                            color: white; padding: 20px; border-radius: 8px; 
+                            box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 10007; 
+                            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                            text-align: center;">
+                    <h3 style="margin: 0 0 15px 0;">👋 Logged Out</h3>
+                    <p style="margin: 0;">You have been successfully logged out. Refreshing page...</p>
+                </div>
+            `;
+            document.body.appendChild(logoutDiv);
+            
+            // Refresh the page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        }
+    }
     function debugPage() {
         console.log('=== PAGE DEBUG INFO ===');
         console.log('URL:', window.location.href);
@@ -1702,8 +1866,8 @@
             return; // Stop initialization
         }
         
-        console.log('Access granted for device fingerprint:', userFingerprint);
-        showAccessStatus();
+        console.log('Access granted for user:', accessResult.user?.name || accessResult.user?.username);
+        showAccessStatus(accessResult.user);
         
         // Check if we're on a CAR details page (has #!/details)
         if (window.location.href.includes('#!/details')) {
