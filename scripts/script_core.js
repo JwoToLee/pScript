@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CAR Batch Extractor
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      2.0
 // @description  Loop through all CARs in the report listing and extract data to display in a left ribbon
 // @author       You
 // @match        https://haesl.gaelenlighten.com/Reporting/ReportingManagement*
@@ -564,7 +564,7 @@
         ribbon.id = 'car-extractor-ribbon';
         ribbon.innerHTML = `
             <div class="ribbon-header">
-                <span>CAR BATCH EXTRACTOR v3.1</span>
+                <span>CAR BATCH EXTRACTOR v4.0</span>
                 <div class="header-buttons">
                     <button id="debug-page-btn" title="Debug">debug</button>
                     <button id="logout-btn" title="Logout">logout</button>
@@ -620,6 +620,7 @@
                             <h4>Getting Started</h4>
                             <p>- Navigate to reports page</p>
                             <p>- Click <strong>Start</strong> to begin extraction</p>
+                            <p>- Process runs <strong>5 concurrent windows</strong> for faster extraction</p>
                             <p>- Use <strong>Pause/Resume</strong> to control the process</p>
                             <p>- Click <strong>Stop</strong> to halt extraction</p>
                         </div>
@@ -648,17 +649,33 @@
                         </div>
                         
                         <div class="help-section">
+                            <h4>Performance Features</h4>
+                            <p><strong>Concurrent Processing:</strong> Runs 5 parallel extractions</p>
+                            <p><strong>Background Mode:</strong> Hidden popup windows</p>
+                            <p><strong>Batch Processing:</strong> Processes in groups of 5</p>
+                            <p><strong>Smart Timeouts:</strong> 20-second timeout per CAR</p>
+                        </div>
+                        
+                        <div class="help-section">
                             <h4>Troubleshooting</h4>
                             <p>- If extraction stops, check page loading</p>
                             <p>- Use debug button for technical details</p>
                             <p>- Clear data if results seem corrupted</p>
                             <p>- Refresh individual CARs if data is missing</p>
+                            <p>- Concurrent mode may consume more browser resources</p>
+                        </div>
+                        <div class="help-section">
+                            <h4>Performance Tips</h4>
+                            <p>- The extractor now opens <strong>5 popups at a time</strong> for much faster data capture.</p>
+                            <p>- If your browser or system is slow, reduce the number of open tabs or close other applications.</p>
+                            <p>- Some browsers may block popups; allow popups for best results.</p>
+                            <p>- For best performance, use a modern browser and keep the report page visible.</p>
                         </div>
                         
                         <div class="help-contact">
                             <h4>Support</h4>
                             <p>Contact: <strong>jt-bryce.lee@haesl.com</strong></p>
-                            <p>Version: <strong>3.1</strong></p>
+                            <p>Version: <strong>4.0</strong></p>
                         </div>
                     </div>
                 </div>
@@ -1148,6 +1165,7 @@
     let currentCarIndex = 0;
     let carLinks = [];
     let selectedCarId = null;
+    let completedExtractions = 0; // Counter for concurrent processing
 
     // Function to minimize the ribbon
     function minimizeRibbon() {
@@ -1706,9 +1724,10 @@
                             extractedData.push(event.data.carData);
                         }
                     } else {
-                        // Normal mode - add to array
+                        // Normal mode - add to array and update progress
                         extractedData.push(event.data.carData);
-                        updateProgress(index + 1, total);
+                        completedExtractions++;
+                        updateProgress(completedExtractions, carLinks.length);
                     }
                     
                     // Update the ribbon with extracted data
@@ -1753,6 +1772,8 @@
                     
                     if (!isRefresh) {
                         extractedData.push(errorData);
+                        completedExtractions++;
+                        updateProgress(completedExtractions, carLinks.length);
                     }
                     
                     resolve();
@@ -1777,6 +1798,8 @@
                     
                     if (!isRefresh) {
                         extractedData.push(errorData);
+                        completedExtractions++;
+                        updateProgress(completedExtractions, carLinks.length);
                     }
                     
                     resolve();
@@ -1900,6 +1923,7 @@
             isPaused = false;
             extractedData = [];
             currentCarIndex = 0;
+            completedExtractions = 0; // Reset counter for new extraction
             
             updateStatus('Finding CAR links...');
             
@@ -1925,31 +1949,65 @@
             console.log('=== STARTING EXTRACTION ===');
         }
         
-        // Process CARs sequentially starting from currentCarIndex
-        for (let i = currentCarIndex; i < carLinks.length; i++) {
+        // Process CARs with concurrent windows (max 5 at a time)
+        const CONCURRENT_LIMIT = 5;
+        let processedCount = 0;
+        
+        // Function to process CARs in batches
+        async function processBatch(batchStart, batchSize) {
+            const promises = [];
+            const batchEnd = Math.min(batchStart + batchSize, carLinks.length);
+            
+            console.log(`🚀 Starting batch ${Math.floor(batchStart/CONCURRENT_LIMIT) + 1}: CARs ${batchStart + 1}-${batchEnd} (${batchEnd - batchStart} items)`);
+            
+            for (let i = batchStart; i < batchEnd; i++) {
+                if (shouldStop) {
+                    console.log('[STOP] Batch processing stopped by user');
+                    break;
+                }
+                
+                if (isPaused) {
+                    currentCarIndex = i;
+                    updateStatus(`[PAUSE] Extraction paused at CAR ${i + 1}/${carLinks.length}`);
+                    updateButtonStates('paused');
+                    return;
+                }
+                
+                console.log(`🔄 Queuing CAR ${i + 1}/${carLinks.length}: ${carLinks[i].carId} for concurrent processing`);
+                promises.push(processCarLink(carLinks[i], i, carLinks.length));
+            }
+            
+            // Wait for all CARs in this batch to complete
+            if (promises.length > 0) {
+                updateStatus(`[PROCESSING] Running ${promises.length} concurrent extractions...`);
+                await Promise.all(promises);
+                processedCount += promises.length;
+                console.log(`✅ Completed batch ${Math.floor(batchStart/CONCURRENT_LIMIT) + 1}: ${promises.length} CARs processed`);
+                updateStatus(`[PROGRESS] Completed ${processedCount}/${carLinks.length} CARs`);
+            }
+        }
+        
+        // Process all CARs in batches starting from currentCarIndex
+        for (let batchStart = currentCarIndex; batchStart < carLinks.length; batchStart += CONCURRENT_LIMIT) {
             if (shouldStop) {
                 updateStatus('[STOP] Extraction stopped by user');
                 break;
             }
             
             if (isPaused) {
-                currentCarIndex = i;
-                updateStatus(`[PAUSE] Extraction paused at CAR ${i + 1}/${carLinks.length}`);
+                currentCarIndex = batchStart;
+                updateStatus(`[PAUSE] Extraction paused at CAR ${batchStart + 1}/${carLinks.length}`);
                 updateButtonStates('paused');
                 return;
             }
             
-            currentCarIndex = i;
-            console.log(`🔄 Processing CAR ${i + 1}/${carLinks.length}: ${carLinks[i].carId}`);
+            currentCarIndex = batchStart;
+            await processBatch(batchStart, CONCURRENT_LIMIT);
             
-            // Process one CAR at a time and wait for completion
-            await processCarLink(carLinks[i], i, carLinks.length);
-            
-            console.log(`✅ Completed processing ${carLinks[i].carId}`);
-            
-            // Small delay between requests to be respectful and prevent conflicts
-            if (i < carLinks.length - 1) { // Don't delay after the last CAR
-                await new Promise(resolve => setTimeout(resolve, 2000));
+            // Brief pause between batches to prevent overwhelming the browser
+            if (batchStart + CONCURRENT_LIMIT < carLinks.length) {
+                console.log('💤 Brief pause between batches...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
         
@@ -2043,6 +2101,7 @@
         extractedData = [];
         currentCarIndex = 0;
         carLinks = [];
+        completedExtractions = 0; // Reset completion counter
         updateStatus('Results cleared - ready for new extraction');
         updateButtonStates('idle');
         
