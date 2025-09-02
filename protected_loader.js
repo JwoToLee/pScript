@@ -127,9 +127,21 @@
                         if (response.responseText.includes('CAR Batch Extractor') && 
                             response.responseText.length > 1000) {
                             
-                            // Execute in protected context
+                            // Execute in protected context using script injection
                             (function() {
-                                eval(response.responseText);
+                                const scriptElement = document.createElement('script');
+                                scriptElement.textContent = response.responseText;
+                                scriptElement.setAttribute('type', 'text/javascript');
+                                
+                                // Add to head temporarily
+                                document.head.appendChild(scriptElement);
+                                
+                                // Clean up after execution
+                                setTimeout(() => {
+                                    if (scriptElement.parentNode) {
+                                        scriptElement.parentNode.removeChild(scriptElement);
+                                    }
+                                }, 200);
                             })();
                             
                         } else {

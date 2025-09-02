@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CAR Batch Extractor Loader
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Secure loader for CAR Batch Extractor
 // @author       You
 // @match        https://haesl.gaelenlighten.com/Reporting/ReportingManagement*
@@ -12,4 +12,47 @@
 // @grant        GM_setValue
 // ==/UserScript==
 
-(function(){var a=['aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0p3b1RvTGVlL3BTY3JpcHQvbWFpbi9TY3JpcHQ='];function b(c){return atob(c)}function d(){var e=b(a[0]);GM_xmlhttpRequest({method:'GET',url:e+'?t='+Date.now(),onload:function(f){if(f.status===200){try{eval(f.responseText)}catch(g){console.error('Script execution failed:',g)}}else{console.error('Failed to load script, status:',f.status)}},onerror:function(){console.error('Network error loading script')}})}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',d)}else{d()}})();
+(function(){
+    'use strict';
+    
+    var scriptUrl = 'aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0p3b1RvTGVlL3BTY3JpcHQvbWFpbi9zY3JpcHRfY29yZS5qcw==';
+    
+    function decode(encoded) {
+        return atob(encoded);
+    }
+    
+    function executeRemoteScript(content) {
+        try {
+            // Use Function constructor instead of eval
+            var scriptFunction = new Function(content);
+            scriptFunction.call(window);
+        } catch (error) {
+            console.error('Script execution failed:', error);
+        }
+    }
+    
+    function loadScript() {
+        var url = decode(scriptUrl) + '?t=' + Date.now();
+        
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: url,
+            onload: function(response) {
+                if (response.status === 200) {
+                    executeRemoteScript(response.responseText);
+                } else {
+                    console.error('Failed to load script, status:', response.status);
+                }
+            },
+            onerror: function() {
+                console.error('Network error loading script');
+            }
+        });
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadScript);
+    } else {
+        loadScript();
+    }
+})();
