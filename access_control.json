@@ -1,44 +1,19 @@
 {
-  "version": "2.0",
-  "lastUpdated": "2025-09-02T12:00:00Z",
-  "globalEnabled": true,
-  "accessControl": {
-    "enabled": true,
-    "mode": "login",
-    "allowedUsers": [
-      {
-        "username": "jwo",
-        "password": "0927",
-        "name": "Admin",
-        "active": true,
-        "lastLogin": null
-      },
-      {
-        "username": "user",
-        "password": "User123",
-        "name": "User",
-        "active": true,
-        "lastLogin": null
-      }
-    ],
-    "sessionTimeout": 50,
-    "maxLoginAttempts": 5,
-    "lockoutDuration": 30
-  },
-  "features": {
-    "extraction": true,
-    "export": true,
-    "debug": true
-  },
-  "message": {
-    "unauthorized": "Please log in to access this tool. Contact your administrator if you don't have credentials.",
-    "disabled": "This tool is currently disabled for maintenance. Please try again later.",
-    "login_required": "Authentication required. Please enter your credentials to continue.",
-    "invalid_credentials": "Invalid username or password. Please try again.",
-    "account_locked": "Account temporarily locked due to too many failed attempts. Please try again later.",
-    "session_expired": "Your session has expired. Please log in again."
-  },
-  "adminContacts": [
-    "admin@company.com"
-  ]
+    "users": {
+        "jwo": {
+            "password": "0927",
+            "lastLogin": "",
+            "sessionTimeout": 3600000
+        },
+        "user": {
+            "password": "User123",
+            "lastLogin": "",
+            "sessionTimeout": 3600000
+        }
+    },
+    "settings": {
+        "maxFailedAttempts": 3,
+        "lockoutDuration": 300000,
+        "sessionTimeout": 3600000
+    }
 }
