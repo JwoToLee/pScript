@@ -6,9 +6,7 @@
     "enabled": true,
     "mode": "whitelist",
     "allowedFingerprints": [
-      "fp_admin_12345",
-      "fp_user1_67890",
-      "fp_user2_abcde"
+      "fp_TW96aWxsYS81LjAgKFdpbmRvd3MgTlQg"
     ],
     "blockedFingerprints": []
   },
