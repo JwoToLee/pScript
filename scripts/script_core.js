@@ -262,38 +262,77 @@
                             }
                         } catch (parseError) {
                             console.error('Failed to parse access control JSON:', parseError);
+                            console.log('Using fallback access control configuration due to parse error...');
                             resolve({
-                                globalEnabled: false,
-                                accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
-                                features: { extraction: false, export: false, debug: false },
+                                globalEnabled: true,
+                                accessControl: { 
+                                    enabled: true, 
+                                    mode: 'login',
+                                    allowedUsers: [
+                                        { username: 'jwo', password: '0927', name: 'Admin', active: true },
+                                        { username: 'user', password: 'user123', name: 'User', active: true }
+                                    ],
+                                    sessionTimeout: 50,
+                                    maxLoginAttempts: 5,
+                                    lockoutDuration: 30
+                                },
+                                features: { extraction: true, export: true, debug: true },
                                 message: { 
-                                    unauthorized: 'Access control configuration error. Please contact admin.',
-                                    disabled: 'Access control service error.'
+                                    unauthorized: 'Access control configuration error. Using offline mode.',
+                                    disabled: 'Access control service error. Using fallback configuration.',
+                                    invalid_credentials: 'Invalid username or password. Please try again.',
+                                    account_locked: 'Account temporarily locked due to too many failed attempts.'
                                 }
                             });
                         }
                     },
                     onerror: function(error) {
                         console.error('Failed to fetch access control:', error);
+                        console.log('Using fallback access control configuration...');
                         resolve({
-                            globalEnabled: false,
-                            accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
-                            features: { extraction: false, export: false, debug: false },
+                            globalEnabled: true,
+                            accessControl: { 
+                                enabled: true, 
+                                mode: 'login',
+                                allowedUsers: [
+                                    { username: 'jwo', password: '0927', name: 'Admin', active: true },
+                                    { username: 'user', password: 'user123', name: 'User', active: true }
+                                ],
+                                sessionTimeout: 50,
+                                maxLoginAttempts: 5,
+                                lockoutDuration: 30
+                            },
+                            features: { extraction: true, export: true, debug: true },
                             message: { 
-                                unauthorized: 'Cannot verify access permissions. Please check your connection and try again.',
-                                disabled: 'Access control service unavailable. Please try again later.'
+                                unauthorized: 'Cannot verify access permissions online. Using offline mode.',
+                                disabled: 'Access control service unavailable. Using fallback configuration.',
+                                invalid_credentials: 'Invalid username or password. Please try again.',
+                                account_locked: 'Account temporarily locked due to too many failed attempts.'
                             }
                         });
                     },
                     ontimeout: function() {
                         console.error('Access control fetch timeout');
+                        console.log('Using fallback access control configuration due to timeout...');
                         resolve({
-                            globalEnabled: false,
-                            accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
-                            features: { extraction: false, export: false, debug: false },
+                            globalEnabled: true,
+                            accessControl: { 
+                                enabled: true, 
+                                mode: 'login',
+                                allowedUsers: [
+                                    { username: 'jwo', password: '0927', name: 'Admin', active: true },
+                                    { username: 'user', password: 'user123', name: 'User', active: true }
+                                ],
+                                sessionTimeout: 50,
+                                maxLoginAttempts: 5,
+                                lockoutDuration: 30
+                            },
+                            features: { extraction: true, export: true, debug: true },
                             message: { 
-                                unauthorized: 'Access verification timeout. Please try again.',
-                                disabled: 'Access control service timeout.'
+                                unauthorized: 'Access verification timeout. Using offline mode.',
+                                disabled: 'Access control service timeout. Using fallback configuration.',
+                                invalid_credentials: 'Invalid username or password. Please try again.',
+                                account_locked: 'Account temporarily locked due to too many failed attempts.'
                             }
                         });
                     },
@@ -302,13 +341,26 @@
                 
             } catch (error) {
                 console.error('Failed to initiate access control fetch:', error);
+                console.log('Using fallback access control configuration due to initialization error...');
                 resolve({
-                    globalEnabled: false,
-                    accessControl: { enabled: true, mode: 'whitelist', allowedFingerprints: [] },
-                    features: { extraction: false, export: false, debug: false },
+                    globalEnabled: true,
+                    accessControl: { 
+                        enabled: true, 
+                        mode: 'login',
+                        allowedUsers: [
+                            { username: 'jwo', password: '0927', name: 'Admin', active: true },
+                            { username: 'user', password: 'user123', name: 'User', active: true }
+                        ],
+                        sessionTimeout: 50,
+                        maxLoginAttempts: 5,
+                        lockoutDuration: 30
+                    },
+                    features: { extraction: true, export: true, debug: true },
                     message: { 
-                        unauthorized: 'Access control initialization error. Please contact admin.',
-                        disabled: 'Access control service error.'
+                        unauthorized: 'Access control initialization error. Using offline mode.',
+                        disabled: 'Access control service error. Using fallback configuration.',
+                        invalid_credentials: 'Invalid username or password. Please try again.',
+                        account_locked: 'Account temporarily locked due to too many failed attempts.'
                     }
                 });
             }
