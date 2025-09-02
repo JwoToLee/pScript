@@ -341,7 +341,7 @@
         ribbon.id = 'car-extractor-ribbon';
         ribbon.innerHTML = `
             <div class="ribbon-header">
-                <span>CAR BATCH EXTRACTOR v1.0</span>
+                <span>CAR BATCH EXTRACTOR v3.1</span>
                 <button id="minimize-ribbon-btn" title="Minimize">-</button>
             </div>
             <div id="ribbon-content">

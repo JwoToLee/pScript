@@ -33,6 +33,7 @@
     }
     
     function executeScript(scriptContent) {
+        
         try {
             // Create a bridge to expose GM functions to the injected script
             window.GM_bridge = {
