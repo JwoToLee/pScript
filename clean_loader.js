@@ -39,10 +39,24 @@
     
     function executeScript(scriptContent) {
         try {
+            // Create a bridge to expose GM functions to the injected script
+            window.GM_bridge = {
+                addStyle: GM_addStyle,
+                getValue: GM_getValue,
+                setValue: GM_setValue,
+                xmlhttpRequest: GM_xmlhttpRequest
+            };
+            
+            // Modify the script content to use the bridge
+            const modifiedScript = scriptContent
+                .replace(/GM_addStyle/g, 'window.GM_bridge.addStyle')
+                .replace(/GM_getValue/g, 'window.GM_bridge.getValue')
+                .replace(/GM_setValue/g, 'window.GM_bridge.setValue')
+                .replace(/GM_xmlhttpRequest/g, 'window.GM_bridge.xmlhttpRequest');
+            
             // Create a script element and inject it into the page
-            // This preserves the Tampermonkey context and grants
             const scriptElement = document.createElement('script');
-            scriptElement.textContent = scriptContent;
+            scriptElement.textContent = modifiedScript;
             scriptElement.setAttribute('type', 'text/javascript');
             
             // Inject into the document head
@@ -53,7 +67,9 @@
                 if (scriptElement.parentNode) {
                     scriptElement.parentNode.removeChild(scriptElement);
                 }
-            }, 1000);
+                // Clean up the bridge
+                delete window.GM_bridge;
+            }, 3000);
             
             return true;
         } catch (error) {
