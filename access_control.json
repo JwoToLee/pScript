@@ -7,22 +7,22 @@
     "mode": "login",
     "allowedUsers": [
       {
-        "username": "admin",
-        "password": "Admin123!",
+        "username": "jwo",
+        "password": "0927",
         "name": "Administrator",
         "active": true,
         "lastLogin": null
       },
       {
-        "username": "user1",
-        "password": "User123!",
-        "name": "User One",
+        "username": "user",
+        "password": "User123",
+        "name": "User",
         "active": true,
         "lastLogin": null
       }
     ],
-    "sessionTimeout": 24,
-    "maxLoginAttempts": 3,
+    "sessionTimeout": 50,
+    "maxLoginAttempts": 5,
     "lockoutDuration": 30
   },
   "features": {
