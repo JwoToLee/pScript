@@ -1,7 +1,8 @@
 const fs = require('fs');
+const path = require('path');
 
-// Read the main script
-const script = fs.readFileSync('script_core.js', 'utf8');
+// Read the main script from the scripts folder
+const script = fs.readFileSync(path.join('..', 'scripts', 'script_core.js'), 'utf8');
 
 // Advanced obfuscation function
 function obfuscate(code) {
@@ -30,7 +31,7 @@ console.error('Load error:',e.message);
 }
 
 const obfuscatedScript = obfuscate(script);
-fs.writeFileSync('script_obfuscated.js', obfuscatedScript);
+fs.writeFileSync(path.join('..', 'scripts', 'script_obfuscated.js'), obfuscatedScript);
 console.log('✅ Script obfuscated successfully');
 console.log('📏 Original size:', script.length);
 console.log('📏 Obfuscated size:', obfuscatedScript.length);

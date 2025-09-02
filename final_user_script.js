@@ -17,7 +17,7 @@
     'use strict';
     
     // Configuration
-    const SCRIPT_URL = 'https://raw.githubusercontent.com/JwoToLee/pScript/main/script_obfuscated.js';
+    const SCRIPT_URL = 'https://raw.githubusercontent.com/JwoToLee/pScript/main/scripts/script_obfuscated.js';
     const ALLOWED_DOMAINS = ['cars.com', 'www.cars.com'];
     
     // Verify domain

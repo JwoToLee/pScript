@@ -16,7 +16,7 @@
     'use strict';
 
     // Configuration
-    const ACCESS_CONTROL_URL = 'https://raw.githubusercontent.com/JwoToLee/pScript/main/access_control.json';
+    const ACCESS_CONTROL_URL = 'https://raw.githubusercontent.com/JwoToLee/pScript/main/config/access_control.json';
     const CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
     
     // Global variables for access control
