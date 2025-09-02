@@ -521,16 +521,16 @@
             </div>
             <div class="ribbon-navigation">
                 <div class="nav-tab active" id="extractor-tab" data-tab="extractor">
-                    <span>Extractor</span>
+                    <span>🔧</span>
                 </div>
                 <div class="nav-tab" id="console-tab" data-tab="console">
-                    <span>Console</span>
+                    <span>📊</span>
                 </div>
                 <div class="nav-tab" id="settings-tab" data-tab="settings">
-                    <span>Settings</span>
+                    <span>⚙️</span>
                 </div>
                 <div class="nav-tab" id="help-tab" data-tab="help">
-                    <span>Help</span>
+                    <span>❓</span>
                 </div>
             </div>
             <div id="ribbon-content">
@@ -561,9 +561,53 @@
                     </div>
                 </div>
                 <div class="tab-content" id="help-content">
-                    <div class="tbd-content">
-                        <h3>Help</h3>
-                        <p>TBD - Documentation and user guide will be provided here.</p>
+                    <div class="help-content">
+                        <h3>📖 CAR Extractor Help</h3>
+                        
+                        <div class="help-section">
+                            <h4>🚀 Getting Started</h4>
+                            <p>• Navigate to a cars.com search results page</p>
+                            <p>• Click <strong>Start</strong> to begin extraction</p>
+                            <p>• Use <strong>Pause/Resume</strong> to control the process</p>
+                            <p>• Click <strong>Stop</strong> to halt extraction</p>
+                        </div>
+                        
+                        <div class="help-section">
+                            <h4>⚙️ Tab Navigation</h4>
+                            <p><strong>⚙️ Extractor:</strong> Main extraction controls</p>
+                            <p><strong>📊 Console:</strong> Logs and debugging info</p>
+                            <p><strong>⚙️ Settings:</strong> Configuration options</p>
+                            <p><strong>❓ Help:</strong> This help guide</p>
+                        </div>
+                        
+                        <div class="help-section">
+                            <h4>🎮 Controls</h4>
+                            <p><strong>Header Buttons:</strong></p>
+                            <p>• <code>debug</code> - Show debug information</p>
+                            <p>• <code>logout</code> - Sign out of the tool</p>
+                            <p>• <code>-</code> - Minimize the ribbon</p>
+                        </div>
+                        
+                        <div class="help-section">
+                            <h4>📁 Data Management</h4>
+                            <p><strong>Export:</strong> Download extracted data as CSV</p>
+                            <p><strong>Clear:</strong> Remove all extracted data</p>
+                            <p><strong>Right-click CAR:</strong> Refresh individual entries</p>
+                        </div>
+                        
+                        <div class="help-section">
+                            <h4>🔧 Troubleshooting</h4>
+                            <p>• If extraction stops, check page loading</p>
+                            <p>• Use debug button for technical details</p>
+                            <p>• Clear data if results seem corrupted</p>
+                            <p>• Refresh individual CARs if data is missing</p>
+                        </div>
+                        
+                        <div class="help-contact">
+                            <h4>📞 Support</h4>
+                            <p>Contact: <strong>jt-bryce.lee@haesl.com</strong></p>
+                            <p>Version: <strong>3.1</strong></p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -904,35 +948,31 @@
         }
         
         /* Navigation Tabs Styles */
-        .navigation-container {
+        .ribbon-navigation {
             margin: -20px -20px 0 -20px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .nav-tabs {
-            display: flex;
-            list-style: none;
-            margin: 0;
-            padding: 0;
             background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            height: 40px;
         }
         
         .nav-tab {
             flex: 1;
-            padding: 12px 15px;
+            padding: 8px 12px;
             background: transparent;
             border: none;
             color: rgba(255, 255, 255, 0.7);
             cursor: pointer;
             font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-            font-size: 11px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 16px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             border-bottom: 2px solid transparent;
             position: relative;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 36px;
         }
         
         .nav-tab:hover {
@@ -980,6 +1020,67 @@
             font-size: 12px;
             line-height: 1.5;
             margin-bottom: 10px;
+        }
+        
+        /* Help Content Styles */
+        .help-content {
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        .help-section {
+            margin-bottom: 20px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid #58a6ff;
+        }
+        
+        .help-section h4 {
+            color: #58a6ff;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            margin-top: 0;
+        }
+        
+        .help-section p {
+            margin-bottom: 6px;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        
+        .help-section code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 10px;
+            color: #79c0ff;
+        }
+        
+        .help-contact {
+            margin-top: 20px;
+            padding: 12px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+        
+        .help-contact h4 {
+            color: #667eea;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            margin-top: 0;
+        }
+        
+        .help-contact p {
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
+        
+        .help-contact strong {
+            color: #ffffff;
         }
     `);
 
