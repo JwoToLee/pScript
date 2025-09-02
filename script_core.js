@@ -136,7 +136,7 @@
                              text-align: center; font-size: 12px; display: none;"></div>
                         <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #34495e; 
                              font-size: 11px; color: #bdc3c7; text-align: center;">
-                            Contact admin@company.com for access credentials
+                            Contact jt-bryce.lee@haesl.com for access credentials
                         </div>
                     </div>
                 </div>
