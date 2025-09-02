@@ -4,13 +4,14 @@
 // @version      2.1
 // @description  Extract CAR data from multiple pages with enhanced UI
 // @author       JwoToLee
-// @match        https://www.cars.com/*
+// @match        https://haesl.gaelenlighten.com/Reporting/ReportingManagement*
+// @match        https://haesl.gaelenlighten.com/Reporting/Report/Index/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @updateURL    https://raw.githubusercontent.com/JwoToLee/pScript/main/final_user_script.js
-// @downloadURL  https://raw.githubusercontent.com/JwoToLee/pScript/main/final_user_script.js
+// @updateURL    https://raw.githubusercontent.com/JwoToLee/pScript/main/loaders/final_user_script.js
+// @downloadURL  https://raw.githubusercontent.com/JwoToLee/pScript/main/loaders/final_user_script.js
 // ==/UserScript==
 
 (function() {
@@ -18,7 +19,7 @@
     
     // Configuration
     const SCRIPT_URL = 'https://raw.githubusercontent.com/JwoToLee/pScript/main/scripts/script_obfuscated.js';
-    const ALLOWED_DOMAINS = ['cars.com', 'www.cars.com'];
+    const ALLOWED_DOMAINS = ['haesl.gaelenlighten.com'];
     
     // Verify domain
     function isAllowedDomain() {
@@ -31,7 +32,7 @@
     // Load and execute the main script
     function loadMainScript() {
         if (!isAllowedDomain()) {
-            console.log('CAR Extractor: Not running on allowed domain');
+            console.log('CAR Extractor: Not running on allowed domain:', window.location.hostname);
             return;
         }
         

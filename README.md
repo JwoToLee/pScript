@@ -7,7 +7,6 @@ A Tampermonkey userscript for extracting CAR (Corrective Action Request) data fr
 ```
 pScript/
 ├── README.md                    # This file
-├── final_user_script.js        # Main Tampermonkey script (entry point)
 ├── Script/                     # Legacy script folder
 ├── config/                     # Configuration files
 │   └── access_control.json    # User access control configuration
@@ -18,6 +17,7 @@ pScript/
 │   ├── secure_user_script.js  # Secure user script
 │   └── user_script.js         # Basic user script
 ├── loaders/                    # Various loader implementations
+│   ├── final_user_script.js   # Main Tampermonkey script (entry point)
 │   ├── clean_loader.js        # Clean loader
 │   ├── debug_loader.js        # Debug loader
 │   ├── loader.js              # Basic loader
@@ -40,7 +40,7 @@ pScript/
 ## 🚀 Quick Start
 
 1. **Install Tampermonkey** browser extension
-2. **Import the script**: Copy `final_user_script.js` content into Tampermonkey
+2. **Import the script**: Copy `loaders/final_user_script.js` content into Tampermonkey
 3. **Configure access**: Update `config/access_control.json` with user credentials
 4. **Navigate to target website** and use the tool
 
