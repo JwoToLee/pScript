@@ -562,49 +562,49 @@
                 </div>
                 <div class="tab-content" id="help-content">
                     <div class="help-content">
-                        <h3>📖 CAR Extractor Help</h3>
+                        <h3>CAR Extractor Help</h3>
                         
                         <div class="help-section">
-                            <h4>🚀 Getting Started</h4>
-                            <p>• Navigate to a cars.com search results page</p>
-                            <p>• Click <strong>Start</strong> to begin extraction</p>
-                            <p>• Use <strong>Pause/Resume</strong> to control the process</p>
-                            <p>• Click <strong>Stop</strong> to halt extraction</p>
+                            <h4>Getting Started</h4>
+                            <p>- Navigate to reports page</p>
+                            <p>- Click <strong>Start</strong> to begin extraction</p>
+                            <p>- Use <strong>Pause/Resume</strong> to control the process</p>
+                            <p>- Click <strong>Stop</strong> to halt extraction</p>
                         </div>
                         
                         <div class="help-section">
-                            <h4>⚙️ Tab Navigation</h4>
+                            <h4>Tab Navigation</h4>
                             <p><strong>Extract:</strong> Main extraction controls</p>
                             <p><strong>Console:</strong> Logs and debugging info</p>
                             <p><strong>Settings:</strong> Configuration options</p>
-                            <p><strong>Help:</strong> This help guide</p>
+                            <p><strong>Help:</strong> Help guide</p>
                         </div>
                         
                         <div class="help-section">
-                            <h4>🎮 Controls</h4>
+                            <h4>Controls</h4>
                             <p><strong>Header Buttons:</strong></p>
-                            <p>• <code>debug</code> - Show debug information</p>
-                            <p>• <code>logout</code> - Sign out of the tool</p>
-                            <p>• <code>-</code> - Minimize the ribbon</p>
+                            <p><code>debug</code> - Show debug information</p>
+                            <p><code>logout</code> - Sign out of the tool</p>
+                            <p><code>-</code> - Minimize the ribbon</p>
                         </div>
                         
                         <div class="help-section">
-                            <h4>📁 Data Management</h4>
+                            <h4>Data Management</h4>
                             <p><strong>Export:</strong> Download extracted data as CSV</p>
                             <p><strong>Clear:</strong> Remove all extracted data</p>
                             <p><strong>Right-click CAR:</strong> Refresh individual entries</p>
                         </div>
                         
                         <div class="help-section">
-                            <h4>🔧 Troubleshooting</h4>
-                            <p>• If extraction stops, check page loading</p>
-                            <p>• Use debug button for technical details</p>
-                            <p>• Clear data if results seem corrupted</p>
-                            <p>• Refresh individual CARs if data is missing</p>
+                            <h4>Troubleshooting</h4>
+                            <p>- If extraction stops, check page loading</p>
+                            <p>- Use debug button for technical details</p>
+                            <p>- Clear data if results seem corrupted</p>
+                            <p>- Refresh individual CARs if data is missing</p>
                         </div>
                         
                         <div class="help-contact">
-                            <h4>📞 Support</h4>
+                            <h4>Support</h4>
                             <p>Contact: <strong>jt-bryce.lee@haesl.com</strong></p>
                             <p>Version: <strong>3.1</strong></p>
                         </div>
@@ -895,10 +895,10 @@
             top: 10px;
             width: 35px;
             height: 35px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
+            background: #ffffff;
+            border: 2px solid #58a6ff;
             border-radius: 50%;
-            color: white;
+            color: #58a6ff;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
@@ -906,15 +906,17 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         }
         
         #ribbon-minimized-btn:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-            transform: scale(1.1) rotate(15deg);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+            background: #f8f9fa;
+            border-color: #79c0ff;
+            color: #79c0ff;
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(88, 166, 255, 0.3);
         }
         
         .car-context-menu {
