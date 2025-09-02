@@ -101,7 +101,7 @@
                     <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); 
                                color: white; padding: 30px; border-radius: 10px; 
                                box-shadow: 0 10px 30px rgba(0,0,0,0.5); min-width: 400px;">
-                        <h2 style="margin: 0 0 20px 0; text-align: center; color: #3498db;">🔐 CAR Extractor Login</h2>
+                        <h2 style="margin: 0 0 20px 0; text-align: center; color: #3498db;">[LOGIN] CAR Extractor Login</h2>
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-size: 14px;">Username:</label>
                             <input type="text" id="login-username" 
@@ -218,7 +218,7 @@
                         box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 10006; 
                         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
                         max-width: 400px; text-align: center;">
-                <h3 style="margin: 0 0 15px 0;">🚫 Login Failed</h3>
+                <h3 style="margin: 0 0 15px 0;">[ERROR] Login Failed</h3>
                 <p style="margin: 0 0 15px 0;">${message}</p>
                 <button onclick="this.parentElement.parentElement.remove()" 
                         style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); 
@@ -346,7 +346,7 @@
         );
         
         if (user) {
-            console.log(`✅ Login successful for user: ${user.name} (${user.username})`);
+            console.log(`[LOGIN_OK] Login successful for user: ${user.name} (${user.username})`);
             return { 
                 authorized: true, 
                 user: {
@@ -462,7 +462,7 @@
                         box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 10003; 
                         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
                         max-width: 400px; text-align: center;">
-                <h3 style="margin: 0 0 15px 0;">🚫 Access Denied</h3>
+                <h3 style="margin: 0 0 15px 0;">[DENIED] Access Denied</h3>
                 <p style="margin: 0 0 15px 0;">${message || 'You are not authorized to use this tool.'}</p>
                 <p style="margin: 0 0 15px 0; font-size: 12px; opacity: 0.8;">
                     Reason: ${reason || 'Unknown'}
@@ -493,7 +493,7 @@
                         padding: 8px 12px; border-radius: 4px; 
                         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
                         font-size: 11px; z-index: 10002;">
-                ✅ Logged in as: ${user?.name || user?.username || 'User'}
+                [OK] Logged in as: ${user?.name || user?.username || 'User'}
             </div>
         `;
         document.body.appendChild(statusDiv);
@@ -539,7 +539,7 @@
         // Create minimized state button
         const minimizedBtn = document.createElement('div');
         minimizedBtn.id = 'ribbon-minimized-btn';
-        minimizedBtn.innerHTML = '📋';
+        minimizedBtn.innerHTML = '[CAR]';
         minimizedBtn.title = 'Show CAR Extractor';
         minimizedBtn.style.display = 'none';
         document.body.appendChild(minimizedBtn);
@@ -891,7 +891,7 @@
         contextMenu.id = 'car-context-menu';
         contextMenu.className = 'car-context-menu';
         contextMenu.innerHTML = `
-            <div class="car-context-menu-item" id="refresh-car-item">🔄 Refresh CAR</div>
+            <div class="car-context-menu-item" id="refresh-car-item">[R] Refresh CAR</div>
         `;
         document.body.appendChild(contextMenu);
         
@@ -944,7 +944,7 @@
         const carLink = carLinks.find(link => link.carId === selectedCarId);
         if (!carLink) {
             console.error(`CAR link not found for ${selectedCarId}`);
-            updateStatus(`❌ Could not find link for ${selectedCarId}`);
+            updateStatus(`[ERROR] Could not find link for ${selectedCarId}`);
             return;
         }
         
@@ -961,10 +961,10 @@
         try {
             // Process the single CAR
             await processCarLink(carLink, 0, 1, true); // Pass true for refresh mode
-            updateStatus(`✅ Refreshed ${selectedCarId}`);
+            updateStatus(`[OK] Refreshed ${selectedCarId}`);
         } catch (error) {
             console.error('Error refreshing CAR:', error);
-            updateStatus(`❌ Failed to refresh ${selectedCarId}`);
+            updateStatus(`[ERROR] Failed to refresh ${selectedCarId}`);
             
             // Update entry with error
             if (entryDiv) {
@@ -1564,7 +1564,7 @@
         if (isPaused) {
             // Resume extraction
             isPaused = false;
-            updateStatus(`🔄 Resuming extraction from CAR ${currentCarIndex + 1}/${carLinks.length}...`);
+            updateStatus(`[RESUME] Resuming extraction from CAR ${currentCarIndex + 1}/${carLinks.length}...`);
             console.log('=== RESUMING EXTRACTION ===');
         } else {
             // Start new extraction
@@ -1586,7 +1586,7 @@
             carLinks = findCarLinks();
             
             if (carLinks.length === 0) {
-                updateStatus('❌ No CAR links found on this page');
+                updateStatus('[ERROR] No CAR links found on this page');
                 console.log('=== NO LINKS FOUND ===');
                 
                 extractionInProgress = false;
@@ -1594,20 +1594,20 @@
                 return;
             }
             
-            updateStatus(`✅ Found ${carLinks.length} CARs. Starting window-based extraction...`);
+            updateStatus(`[OK] Found ${carLinks.length} CARs. Starting window-based extraction...`);
             console.log('=== STARTING EXTRACTION ===');
         }
         
         // Process CARs sequentially starting from currentCarIndex
         for (let i = currentCarIndex; i < carLinks.length; i++) {
             if (shouldStop) {
-                updateStatus('⏹️ Extraction stopped by user');
+                updateStatus('[STOP] Extraction stopped by user');
                 break;
             }
             
             if (isPaused) {
                 currentCarIndex = i;
-                updateStatus(`⏸️ Extraction paused at CAR ${i + 1}/${carLinks.length}`);
+                updateStatus(`[PAUSE] Extraction paused at CAR ${i + 1}/${carLinks.length}`);
                 updateButtonStates('paused');
                 return;
             }
@@ -1627,7 +1627,7 @@
         }
         
         if (!shouldStop && !isPaused) {
-            updateStatus(`🎉 Extraction complete! Processed ${extractedData.length} CARs`);
+            updateStatus(`[COMPLETE] Extraction complete! Processed ${extractedData.length} CARs`);
             console.log('=== EXTRACTION COMPLETE ===');
             extractionInProgress = false;
             updateButtonStates('completed');
@@ -1637,7 +1637,7 @@
     // Function to pause extraction
     function pauseExtraction() {
         isPaused = true;
-        updateStatus(`⏸️ Pausing extraction after current CAR...`);
+        updateStatus(`[PAUSE] Pausing extraction after current CAR...`);
         console.log('=== PAUSING EXTRACTION ===');
     }
 
@@ -1646,7 +1646,7 @@
         shouldStop = true;
         isPaused = false;
         extractionInProgress = false;
-        updateStatus('⏹️ Stopping extraction...');
+        updateStatus('[STOP] Stopping extraction...');
         console.log('=== STOPPING EXTRACTION ===');
         updateButtonStates('idle');
     }
@@ -1738,7 +1738,7 @@
                             box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 10007; 
                             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
                             text-align: center;">
-                    <h3 style="margin: 0 0 15px 0;">👋 Logged Out</h3>
+                    <h3 style="margin: 0 0 15px 0;">[LOGOUT] Logged Out</h3>
                     <p style="margin: 0;">You have been successfully logged out. Refreshing page...</p>
                 </div>
             `;
@@ -1843,12 +1843,12 @@
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            updateStatus(`✅ Exported ${successfulExports} CARs to CSV file`);
+            updateStatus(`[OK] Exported ${successfulExports} CARs to CSV file`);
             console.log('=== EXPORT COMPLETE ===');
         } catch (error) {
             console.error('Export error:', error);
             alert('Error exporting data. Please check console for details.');
-            updateStatus('❌ Export failed');
+            updateStatus('[ERROR] Export failed');
         }
     }
 
