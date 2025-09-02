@@ -539,7 +539,7 @@
         // Create minimized state button
         const minimizedBtn = document.createElement('div');
         minimizedBtn.id = 'ribbon-minimized-btn';
-        minimizedBtn.innerHTML = '[CAR]';
+        minimizedBtn.innerHTML = '>';
         minimizedBtn.title = 'Show CAR Extractor';
         minimizedBtn.style.display = 'none';
         document.body.appendChild(minimizedBtn);
@@ -565,124 +565,136 @@
             position: fixed;
             left: 0;
             top: 0;
-            width: 320px;
+            width: 340px;
             height: 100vh;
-            background: linear-gradient(180deg, #0d1117 0%, #161b22 50%, #1c2128 100%);
-            color: #c9d1d9;
+            background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #e8eaed;
             z-index: 10000;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.6);
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3), inset -1px 0 0 rgba(255, 255, 255, 0.1);
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
             overflow-y: auto;
-            padding: 15px;
-            border-right: 1px solid #30363d;
+            padding: 20px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
         }
         
         #car-extractor-ribbon button {
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 11px;
-            font-weight: 500;
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 12px;
+            font-weight: 600;
             letter-spacing: 0.5px;
-            transition: all 0.2s ease;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(5px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            text-transform: uppercase;
         }
         
         #car-extractor-ribbon button:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+        }
+        
+        #car-extractor-ribbon button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
         
         #debug-page-btn {
-            background: rgba(33, 136, 209, 0.15) !important;
-            color: #58a6ff !important;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
         }
         
         #debug-page-btn:hover {
-            background: rgba(33, 136, 209, 0.25) !important;
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
         }
         
         #logout-btn {
-            background: rgba(231, 76, 60, 0.15) !important;
-            color: #ff6b6b !important;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%) !important;
+            color: white !important;
         }
         
         #logout-btn:hover {
-            background: rgba(231, 76, 60, 0.25) !important;
+            background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%) !important;
         }
         
         #start-extraction-btn {
-            background: rgba(46, 160, 67, 0.15) !important;
-            color: #56d364 !important;
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%) !important;
+            color: white !important;
         }
         
         #start-extraction-btn:hover {
-            background: rgba(46, 160, 67, 0.25) !important;
+            background: linear-gradient(135deg, #44a08d 0%, #4ecdc4 100%) !important;
         }
         
         #pause-extraction-btn {
-            background: rgba(187, 128, 9, 0.15) !important;
-            color: #e3b341 !important;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+            color: white !important;
         }
         
         #pause-extraction-btn:hover {
-            background: rgba(187, 128, 9, 0.25) !important;
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%) !important;
         }
         
         #stop-extraction-btn {
-            background: rgba(218, 54, 51, 0.15) !important;
-            color: #f85149 !important;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%) !important;
+            color: #333 !important;
         }
         
         #stop-extraction-btn:hover {
-            background: rgba(218, 54, 51, 0.25) !important;
+            background: linear-gradient(135deg, #fecfef 0%, #ff9a9e 100%) !important;
         }
         
         #export-results-btn {
-            background: rgba(102, 117, 127, 0.15) !important;
-            color: #8b949e !important;
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%) !important;
+            color: #333 !important;
         }
         
         #export-results-btn:hover {
-            background: rgba(102, 117, 127, 0.25) !important;
+            background: linear-gradient(135deg, #fed6e3 0%, #a8edea 100%) !important;
         }
         
         #clear-results-btn {
-            background: rgba(240, 126, 37, 0.15) !important;
-            color: #ff8c42 !important;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%) !important;
+            color: #333 !important;
         }
         
         #clear-results-btn:hover {
-            background: rgba(240, 126, 37, 0.25) !important;
+            background: linear-gradient(135deg, #fcb69f 0%, #ffecd2 100%) !important;
         }
         
         .car-entry {
-            background: rgba(22, 27, 34, 0.6);
-            margin-bottom: 6px;
-            padding: 8px;
-            border-radius: 4px;
-            border-left: 2px solid #21262d;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            margin-bottom: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
             font-size: 11px;
-            line-height: 1.4;
-            border: 1px solid rgba(48, 54, 61, 0.5);
-            backdrop-filter: blur(3px);
+            line-height: 1.5;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .car-entry.loading {
-            border-left-color: #e3b341;
-            background: rgba(187, 128, 9, 0.1);
-            border-color: rgba(187, 128, 9, 0.3);
+            border-left-color: #f093fb;
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.2) 0%, rgba(240, 147, 251, 0.1) 100%);
+            border-color: rgba(240, 147, 251, 0.3);
         }
         
         .car-entry.error {
-            border-left-color: #f85149;
-            background: rgba(218, 54, 51, 0.1);
-            border-color: rgba(218, 54, 51, 0.3);
+            border-left-color: #ff6b6b;
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.2) 0%, rgba(255, 107, 107, 0.1) 100%);
+            border-color: rgba(255, 107, 107, 0.3);
         }
         
         .car-entry:hover {
-            background: rgba(22, 27, 34, 0.8);
-            border-color: rgba(48, 54, 61, 0.8);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         
         .car-id {
@@ -708,25 +720,29 @@
         }
         
         #progress-info {
-            font-size: 11px;
-            color: #7d8590;
-            min-height: 14px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            background: rgba(13, 17, 23, 0.5);
-            padding: 4px 8px;
-            border-radius: 3px;
-            border: 1px solid rgba(48, 54, 61, 0.3);
+            font-size: 12px;
+            color: #ffffff;
+            min-height: 16px;
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            margin-bottom: 8px;
         }
         
         #status-info {
-            font-size: 10px;
-            color: #656d76;
-            min-height: 12px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            background: rgba(13, 17, 23, 0.3);
-            padding: 3px 6px;
-            border-radius: 3px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.8);
+            min-height: 14px;
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            padding: 6px 10px;
+            border-radius: 6px;
             font-style: italic;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 12px;
         }
         
         #car-results {
@@ -755,69 +771,77 @@
         
         /* Adjust main content to make space for ribbon */
         body {
-            margin-left: 320px !important;
-            transition: margin-left 0.3s ease !important;
+            margin-left: 340px !important;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         
         body.ribbon-minimized {
             margin-left: 0px !important;
         }
         
-        /* Add some terminal-like styling */
+        /* Add some modern styling */
         .ribbon-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            color: #58a6ff;
+            color: #ffffff;
             font-weight: 600;
-            text-shadow: 0 0 5px rgba(88, 166, 255, 0.3);
-            margin-bottom: 15px;
-            font-size: 14px;
-            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
-            padding-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            font-size: 15px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            padding: 15px;
+            margin: -20px -20px 20px -20px;
+            backdrop-filter: blur(5px);
         }
         
         #minimize-ribbon-btn {
-            background: rgba(88, 166, 255, 0.15) !important;
-            color: #58a6ff !important;
-            border: 1px solid rgba(88, 166, 255, 0.3) !important;
-            border-radius: 3px !important;
-            padding: 2px 8px !important;
-            font-size: 12px !important;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 50% !important;
+            padding: 8px 10px !important;
+            font-size: 14px !important;
             cursor: pointer !important;
-            transition: all 0.2s ease !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3) !important;
+            font-weight: bold !important;
         }
         
         #minimize-ribbon-btn:hover {
-            background: rgba(88, 166, 255, 0.25) !important;
-            transform: scale(1.05) !important;
+            background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%) !important;
+            transform: scale(1.1) !important;
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5) !important;
         }
         
         #ribbon-minimized-btn {
             position: fixed;
             left: 10px;
             top: 10px;
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
-            border: 2px solid #30363d;
-            border-radius: 8px;
-            color: #58a6ff;
-            font-size: 18px;
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
             cursor: pointer;
             z-index: 10001;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.6);
-            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         }
         
         #ribbon-minimized-btn:hover {
-            background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-            border-color: #58a6ff;
-            transform: scale(1.1);
-            box-shadow: 0 0 15px rgba(88, 166, 255, 0.4);
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            transform: scale(1.1) rotate(15deg);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
         
         .car-context-menu {
