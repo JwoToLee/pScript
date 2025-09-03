@@ -1493,8 +1493,9 @@
 
                 const stageText = stage.textContent || stage.innerText;
                 const lowerStageText = stageText.toLowerCase();
-                console.log(`Stage ${stageIndex} text contains:`, lowerStageText.substring(0, 100));
+                console.log(`Stage ${stageIndex} text contains:`, lowerStageText.substring(0, 200));
 
+                // Detection 1: Investigation stage
                 if (lowerStageText.includes('investigation')) {
                     console.log('Found investigation stage');
                     const owner = findSiblingData("Stage Owner:");
@@ -1517,7 +1518,10 @@
                     }
                 }
 
-                if (lowerStageText.includes('qa') && lowerStageText.includes('follow')) {
+                // Detection 2: QA Follow-up stage (more flexible detection)
+                if ((lowerStageText.includes('qa') && lowerStageText.includes('follow')) || 
+                    (lowerStageText.includes('quality') && lowerStageText.includes('follow')) ||
+                    lowerStageText.includes('qa follow-up')) {
                     console.log('Found QA follow-up stage');
                     const owner = findSiblingData("Stage Owner:");
                     const targetDate = findStaticTextData("Target Date");
@@ -1539,7 +1543,10 @@
                     }
                 }
 
-                if (lowerStageText.includes('hqa') && (lowerStageText.includes('closure') || lowerStageText.includes('close') || lowerStageText.includes('final'))) {
+                // Detection 3: HQA Closure stage (enhanced detection)
+                if ((lowerStageText.includes('hqa') && (lowerStageText.includes('closure') || lowerStageText.includes('close') || lowerStageText.includes('final'))) ||
+                    lowerStageText.includes('hqa closure') ||
+                    (lowerStageText.includes('headquarters') && lowerStageText.includes('closure'))) {
                     console.log('Found HQA closure stage');
                     const owner = findSiblingData("Stage Owner:");
                     const targetDate = findStaticTextData("Target Date");
@@ -1558,47 +1565,48 @@
             });
 
             // Determine which stage to show (priority: HQA Closure > QA Follow-up > Investigation)
-            console.log('Determining which stage to show...');
+            console.log('=== STAGE DECISION LOGIC ===');
+            console.log('Investigation data:', investigationData);
             console.log('Investigation completed:', investigationCompleted);
-            console.log('QA data available:', !!qaData.owner);
+            console.log('QA data:', qaData);
             console.log('QA completed:', qaCompleted);
-            console.log('HQA data available:', !!hqaData.owner);
+            console.log('HQA data:', hqaData);
             
-            // Priority 1: HQA Closure (if available)
+            // Priority 1: HQA Closure (if available and has owner)
             if (hqaData.owner) {
                 data.stageOwner = hqaData.owner;
                 data.targetDate = hqaData.targetDate;
                 data.status = 'HQA Closure';
                 
-                // Create remarks with today's date and stage info
                 const todayFormatted = formatTodayForRemarks();
                 data.remarks = `${todayFormatted}: HQA Closure ${hqaData.owner}`;
                 
-                console.log('Using HQA Closure data');
+                console.log('✅ Using HQA Closure data');
             } 
-            // Priority 2: QA Follow-up (if investigation is completed and QA exists)
-            else if (investigationCompleted && qaData.owner) {
+            // Priority 2: QA Follow-up (if available and has owner)
+            else if (qaData.owner) {
                 data.stageOwner = qaData.owner;
                 data.targetDate = qaData.targetDate;
                 data.status = 'QA Follow-up';
                 
-                // Create remarks with today's date and stage info
                 const todayFormatted = formatTodayForRemarks();
                 data.remarks = `${todayFormatted}: QA Follow-up ${qaData.owner}`;
                 
-                console.log('Using QA Follow-up data');
+                console.log('✅ Using QA Follow-up data');
             } 
-            // Priority 3: Investigation (default/earliest stage)
+            // Priority 3: Investigation (if available and has owner)
             else if (investigationData.owner) {
                 data.stageOwner = investigationData.owner;
                 data.targetDate = investigationData.targetDate;
                 data.status = 'Investigation';
                 
-                // Create remarks with today's date and stage info
                 const todayFormatted = formatTodayForRemarks();
                 data.remarks = `${todayFormatted}: Investigation ${investigationData.owner}`;
                 
-                console.log('Using Investigation data');
+                console.log('✅ Using Investigation data');
+            }
+            else {
+                console.log('❌ No valid stage data found');
             }
 
             console.log('Final extracted data:', data);
@@ -2190,38 +2198,52 @@
         console.log('URL:', window.location.href);
         console.log('Title:', document.title);
         
-        // Show page structure
-        console.log('Tables:', document.querySelectorAll('table').length);
-        console.log('Rows:', document.querySelectorAll('tr').length);
-        console.log('Links:', document.querySelectorAll('a').length);
-        
-        // Show all CAR references
-        const pageText = document.body.textContent;
-        const carMatches = pageText.match(/CAR-\d+/g);
-        console.log('CAR IDs found:', carMatches);
-        
-        // Show first 10 links
-        const links = document.querySelectorAll('a');
-        console.log('First 10 links:');
-        for (let i = 0; i < Math.min(10, links.length); i++) {
-            console.log(`  ${i + 1}. "${links[i].textContent.trim()}" -> ${links[i].href}`);
+        // Check if this is a CAR details page
+        if (window.location.href.includes('#!/details')) {
+            console.log('=== CAR DETAILS PAGE DEBUG ===');
+            
+            // Show stage detection
+            const stages = document.querySelectorAll("li.stage-li");
+            console.log(`Found ${stages.length} stage elements`);
+            
+            stages.forEach((stage, index) => {
+                const stageText = (stage.textContent || stage.innerText).toLowerCase();
+                console.log(`Stage ${index + 1}:`);
+                console.log(`  Text: ${stageText.substring(0, 150)}...`);
+                console.log(`  Investigation match: ${stageText.includes('investigation')}`);
+                console.log(`  QA Follow-up match: ${stageText.includes('qa') && stageText.includes('follow')}`);
+                console.log(`  HQA Closure match: ${stageText.includes('hqa') && (stageText.includes('closure') || stageText.includes('close'))}`);
+                
+                // Check for stage owner
+                const ownerLabel = stage.querySelector('div.details-label');
+                if (ownerLabel && ownerLabel.textContent.includes('Stage Owner')) {
+                    const ownerValue = ownerLabel.nextElementSibling;
+                    console.log(`  Stage Owner: ${ownerValue ? ownerValue.textContent.trim() : 'Not found'}`);
+                }
+            });
+            
+            // Test extraction
+            console.log('=== TESTING EXTRACTION ===');
+            const testData = extractDataFromCurrentPage();
+            console.log('Test extraction result:', testData);
+        } else {
+            // Show page structure for list pages
+            console.log('Tables:', document.querySelectorAll('table').length);
+            console.log('Rows:', document.querySelectorAll('tr').length);
+            console.log('Links:', document.querySelectorAll('a').length);
+            
+            // Show all CAR references
+            const pageText = document.body.textContent;
+            const carMatches = pageText.match(/CAR-\d+/g);
+            console.log('CAR IDs found:', carMatches);
+            
+            // Show first 10 links
+            const links = document.querySelectorAll('a');
+            console.log('First 10 links:');
+            for (let i = 0; i < Math.min(10, links.length); i++) {
+                console.log(`  ${i + 1}. "${links[i].textContent.trim()}" -> ${links[i].href}`);
+            }
         }
-        
-        // Try to find the specific links we need
-        const reportLinks = document.querySelectorAll('a[href*="/Reporting/Report/Index/"]');
-        console.log(`Report/Index links: ${reportLinks.length}`);
-        reportLinks.forEach((link, i) => {
-            console.log(`  Report link ${i + 1}: ${link.href}`);
-        });
-        
-        // Look for kendo grid or other data structures
-        const kendoGrids = document.querySelectorAll('.k-grid, [data-role="grid"]');
-        console.log('Kendo grids found:', kendoGrids.length);
-        
-        const tables = document.querySelectorAll('table');
-        tables.forEach((table, i) => {
-            console.log(`Table ${i + 1}: class="${table.className}", id="${table.id}", rows=${table.querySelectorAll('tr').length}`);
-        });
         
         updateStatus('Debug info logged to console - press F12 to view');
     }
