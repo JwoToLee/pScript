@@ -649,6 +649,14 @@
                         </div>
                         
                         <div class="help-section">
+                            <h4>Status Types</h4>
+                            <p><strong>Investigation:</strong> Initial investigation stage</p>
+                            <p><strong>QA Follow-up:</strong> Quality assurance review stage</p>
+                            <p><strong>HQA Closure:</strong> Final headquarters quality closure stage</p>
+                            <p><em>Status automatically shows the most advanced stage found</em></p>
+                        </div>
+                        
+                        <div class="help-section">
                             <h4>Performance Features</h4>
                             <p><strong>Concurrent Processing:</strong> Runs 5 parallel extractions</p>
                             <p><strong>Background Mode:</strong> Hidden popup windows</p>
@@ -675,7 +683,7 @@
                         <div class="help-contact">
                             <h4>Support</h4>
                             <p>Contact: <strong>jt-bryce.lee@haesl.com</strong></p>
-                            <p>Version: <strong>4.0</strong></p>
+                            <p>Version: <strong>4.1</strong></p>
                         </div>
                     </div>
                 </div>
@@ -1457,6 +1465,8 @@
             let investigationCompleted = false;
             let investigationData = {};
             let qaData = {};
+            let qaCompleted = false;
+            let hqaData = {};
 
             stages.forEach((stage, stageIndex) => {
                 console.log(`Processing stage ${stageIndex}...`);
@@ -1522,15 +1532,52 @@
                     };
                     
                     console.log('QA data:', qaData);
+                    
+                    if (completedDate || (status && status.toLowerCase().includes('complete'))) {
+                        qaCompleted = true;
+                        console.log('QA Follow-up marked as completed');
+                    }
+                }
+
+                if (lowerStageText.includes('hqa') && (lowerStageText.includes('closure') || lowerStageText.includes('close') || lowerStageText.includes('final'))) {
+                    console.log('Found HQA closure stage');
+                    const owner = findSiblingData("Stage Owner:");
+                    const targetDate = findStaticTextData("Target Date");
+                    const completedDate = findSiblingData("Completed date");
+                    const status = findSiblingData("Status:");
+
+                    hqaData = {
+                        owner: owner ? owner.replace(/Cancel|Save/g, '').trim() : '',
+                        targetDate: targetDate ? targetDate.replace(/Cancel|Save/g, '').trim() : 
+                                   (completedDate ? completedDate.replace(/Cancel|Save/g, '').trim() : ''),
+                        status: status ? status.replace(/Cancel|Save/g, '').trim() : ''
+                    };
+                    
+                    console.log('HQA data:', hqaData);
                 }
             });
 
-            // Determine which stage to show
+            // Determine which stage to show (priority: HQA Closure > QA Follow-up > Investigation)
             console.log('Determining which stage to show...');
             console.log('Investigation completed:', investigationCompleted);
             console.log('QA data available:', !!qaData.owner);
+            console.log('QA completed:', qaCompleted);
+            console.log('HQA data available:', !!hqaData.owner);
             
-            if (investigationCompleted && qaData.owner) {
+            // Priority 1: HQA Closure (if available)
+            if (hqaData.owner) {
+                data.stageOwner = hqaData.owner;
+                data.targetDate = hqaData.targetDate;
+                data.status = 'HQA Closure';
+                
+                // Create remarks with today's date and stage info
+                const todayFormatted = formatTodayForRemarks();
+                data.remarks = `${todayFormatted}: HQA Closure ${hqaData.owner}`;
+                
+                console.log('Using HQA Closure data');
+            } 
+            // Priority 2: QA Follow-up (if investigation is completed and QA exists)
+            else if (investigationCompleted && qaData.owner) {
                 data.stageOwner = qaData.owner;
                 data.targetDate = qaData.targetDate;
                 data.status = 'QA Follow-up';
@@ -1539,8 +1586,10 @@
                 const todayFormatted = formatTodayForRemarks();
                 data.remarks = `${todayFormatted}: QA Follow-up ${qaData.owner}`;
                 
-                console.log('Using QA data');
-            } else if (investigationData.owner) {
+                console.log('Using QA Follow-up data');
+            } 
+            // Priority 3: Investigation (default/earliest stage)
+            else if (investigationData.owner) {
                 data.stageOwner = investigationData.owner;
                 data.targetDate = investigationData.targetDate;
                 data.status = 'Investigation';
